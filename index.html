@@ -2,615 +2,1026 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D 서바이벌 FPS</title>
-    <!-- Three.js 라이브러리 로드 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D 드리프트 레이싱</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #000;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2c3e50;
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+            touch-action: none;
             user-select: none;
         }
 
-        /* 십자선 (크로스헤어) */
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 10;
+        #gameCanvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
         }
-        #crosshair::before, #crosshair::after {
-            content: '';
-            position: absolute;
-            background-color: rgba(0, 255, 0, 0.8);
-        }
-        #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
-        #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
 
-        /* 게임 UI */
-        #ui-layer {
+        /* UI 오버레이 스타일 */
+        #uiLayer {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
-            z-index: 5;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
-        .top-ui {
-            display: flex;
-            justify-content: space-between;
-            font-size: 2rem;
+
+        .panel {
+            background: rgba(15, 20, 30, 0.85);
+            padding: 40px 60px;
+            border-radius: 15px;
+            pointer-events: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            border: 2px solid #e74c3c;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #e74c3c;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-style: italic;
+        }
+
+        p.instructions {
+            font-size: 18px;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            color: #ecf0f1;
+            text-align: left;
+        }
+
+        .key-btn {
+            display: inline-block;
+            background: #34495e;
+            padding: 5px 10px;
+            border-radius: 5px;
+            border-bottom: 3px solid #2c3e50;
+            margin: 0 5px;
             font-weight: bold;
-            color: #fff;
-            text-shadow: 2px 2px 0 #000;
         }
-        #health { color: #ff3333; }
-        #score { color: #ffd700; }
-        
-        .bottom-ui {
-            align-self: flex-end;
+
+        button {
+            padding: 15px 50px;
+            font-size: 24px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(to bottom, #e74c3c, #c0392b);
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            box-shadow: 0 6px 0 #922b21;
+        }
+
+        button:hover {
+            transform: translateY(2px);
+            box-shadow: 0 4px 0 #922b21;
+            background: linear-gradient(to bottom, #ff6b5a, #e74c3c);
+        }
+
+        button:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 #922b21;
+        }
+
+        /* HUD 스타일 */
+        .hud-container {
+            position: absolute;
+            pointer-events: none;
+            display: none; /* 게임 시작 전 숨김 */
+        }
+
+        #speedometer {
+            bottom: 30px;
+            right: 30px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            border: 5px solid #34495e;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        #speedValue {
+            font-size: 42px;
+            font-weight: bold;
+            font-style: italic;
+            color: #ecf0f1;
+            line-height: 1;
+        }
+
+        #speedUnit {
+            font-size: 16px;
+            color: #95a5a6;
+            margin-top: -5px;
+        }
+
+        #driftScoreBoard {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px;
+            font-weight: bold;
+            font-style: italic;
+            color: #f1c40f;
+            text-shadow: 0 0 10px #f39c12;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #totalScoreBoard {
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
             background: rgba(0,0,0,0.5);
             padding: 10px 20px;
             border-radius: 8px;
-            color: white;
-            font-size: 1rem;
-            text-align: right;
-            border: 1px solid #333;
-        }
-        .key {
-            background: #fff; color: #000;
-            padding: 2px 6px; border-radius: 4px;
-            font-weight: bold; font-size: 0.9rem;
+            border-left: 5px solid #e74c3c;
         }
 
-        /* 시작 / 게임오버 화면 (포인터 락 제어용) */
-        #blocker {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            z-index: 20;
-            cursor: pointer;
-        }
-        #instructions {
-            text-align: center;
-            line-height: 1.8;
-        }
-        #play-btn {
-            font-size: 3rem;
-            font-weight: bold;
-            color: #00FFCC;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px rgba(0,255,204,0.5);
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        #timerBoard {
+            top: 20px;
+            right: 20px;
+            font-size: 28px;
+            font-family: monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: #ecf0f1;
         }
 
-        /* 피격 효과 (화면 붉어짐) */
-        #damage-overlay {
+        /* 모바일 컨트롤 */
+        #mobileControls {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(255, 0, 0, 0.4);
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            display: none;
             pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.1s;
-            z-index: 15;
+        }
+
+        .control-area {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            color: rgba(255,255,255,0.5);
+        }
+
+        .control-area:active {
+            background: rgba(255,255,255,0.3);
+        }
+
+        #leftBtn { left: 20px; bottom: 20px; }
+        #rightBtn { left: 160px; bottom: 20px; }
+        #gasBtn { right: 20px; bottom: 20px; width: 100px; height: 100px; border-radius: 20px; background: rgba(46, 204, 113, 0.3); border-color: #2ecc71;}
+        #gasBtn:active { background: rgba(46, 204, 113, 0.6); }
+        #brakeBtn { right: 140px; bottom: 20px; width: 80px; height: 80px; border-radius: 20px; background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
+        #brakeBtn:active { background: rgba(231, 76, 60, 0.6); }
+
+        @media (max-width: 768px) {
+            #mobileControls { display: block; }
+            .panel { padding: 20px; width: 85%; }
+            h1 { font-size: 32px; }
+            #speedometer { width: 100px; height: 100px; bottom: 150px; right: 10px; }
+            #speedValue { font-size: 28px; }
+        }
+
+        /* 파티클 캔버스 (타이어 자국 및 연기용) */
+        #particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
         }
     </style>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <div id="crosshair"></div>
-
-    <div id="ui-layer">
-        <div class="top-ui">
-            <div id="health">HP: 100</div>
-            <div id="score">SCORE: 0</div>
+    <div id="hud" class="hud-container" style="width: 100%; height: 100%;">
+        <div id="totalScoreBoard" class="hud-container">점수: <span id="scoreVal">0</span></div>
+        <div id="timerBoard" class="hud-container">00:00</div>
+        <div id="driftScoreBoard" class="hud-container">+<span id="driftVal">0</span> 드리프트!</div>
+       
+        <div id="speedometer" class="hud-container">
+            <div id="speedValue">0</div>
+            <div id="speedUnit">km/h</div>
         </div>
-        <div class="bottom-bar">
-            <div class="bottom-ui">
-                <div><span class="key">W</span> <span class="key">A</span> <span class="key">S</span> <span class="key">D</span> 이동</div>
-                <div><span class="key">마우스 좌클릭</span> 사격</div>
-                <div><span class="key">Space</span> 점프</div>
-            </div>
+       
+        <div id="mobileControls">
+            <div id="leftBtn" class="control-area">◀</div>
+            <div id="rightBtn" class="control-area">▶</div>
+            <div id="brakeBtn" class="control-area">B</div>
+            <div id="gasBtn" class="control-area">GAS</div>
         </div>
     </div>
 
-    <div id="damage-overlay"></div>
+    <div id="uiLayer">
+        <!-- 메인 메뉴 -->
+        <div id="startScreen" class="panel">
+            <h1>Drift King 3D</h1>
+            <p class="instructions">
+                <strong>[조작 방법]</strong><br><br>
+                <span class="key-btn">W</span> 또는 <span class="key-btn">↑</span> : 가속 (엑셀)<br>
+                <span class="key-btn">S</span> 또는 <span class="key-btn">↓</span> : 브레이크 / 후진<br>
+                <span class="key-btn">A</span> <span class="key-btn">D</span> 또는 <span class="key-btn">←</span> <span class="key-btn">→</span> : 핸들 조향<br>
+                <span class="key-btn">Space</span> : <strong>사이드 브레이크 (드리프트)</strong><br><br>
+                코너에서 사이드 브레이크를 걸고 핸들을 꺾어 드리프트 점수를 획득하세요!
+            </p>
+            <button onclick="startGame()">레이스 시작</button>
+        </div>
 
-    <div id="blocker">
-        <div id="instructions">
-            <div id="play-btn">클릭하여 전투 시작</div>
-            <div>마우스로 시점을 이동하고, 좌클릭으로 총을 쏘세요.<br>
-            몰려오는 붉은 적들을 파괴하여 생존하십시오.</div>
-            <br>
-            <div style="color:#aaa; font-size:0.9rem;">(게임 중 마우스 잠금을 해제하려면 ESC 키를 누르세요)</div>
+        <!-- 게임 오버 화면 -->
+        <div id="gameOverScreen" class="panel" style="display: none;">
+            <h1>TIME OVER</h1>
+            <p class="instructions" style="text-align: center;">
+                최종 점수<br>
+                <strong id="finalScore" style="font-size: 48px; color: #f1c40f;">0</strong>
+            </p>
+            <button onclick="startGame()">다시 달리기</button>
         </div>
     </div>
 
     <script>
-        // --- 1. Three.js 기본 설정 ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color('#1a1a24'); // 어두운 밤/우주 배경
-        scene.fog = new THREE.Fog('#1a1a24', 10, 100);
+        // --- 전역 변수 설정 ---
+        let scene, camera, renderer;
+        let carGroup, carChassis, frontWheels, rearWheels;
+        let trackMeshes = [];
+        let skidmarks = [];
+        let smokeParticles = [];
+       
+        let gameState = 'menu'; // 'menu', 'playing', 'gameover'
+        let totalScore = 0;
+        let timeLeft = 60; // 60초
+        let lastTime = 0;
+        let timerInterval;
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
+        // --- 물리 및 차량 동역학 변수 ---
+        const physics = {
+            position: new THREE.Vector3(0, 0, 0),
+            velocity: new THREE.Vector3(0, 0, 0), // 로컬 공간 속도 (z: 전진/후진, x: 좌우 슬립)
+            worldVelocity: new THREE.Vector3(0, 0, 0), // 월드 공간 속도
+            heading: 0, // 차량이 바라보는 방향 (라디안)
+            angularVelocity: 0, // 회전 속도
+           
+            // 입력
+            steerAngle: 0,
+            throttle: 0,
+            brake: 0,
+            ebrake: false,
 
-        // --- 2. 조명 설정 ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-        scene.add(ambientLight);
+            // 스펙 설정
+            mass: 1200,
+            inertia: 1500,
+            wheelBase: 2.8, // 앞뒤 바퀴 축 간격
+            cgToFront: 1.4, // 무게중심에서 앞바퀴까지
+            cgToRear: 1.4,  // 무게중심에서 뒷바퀴까지
+           
+            // 타이어 그립 관련 (중요!)
+            gripFront: 2.0,
+            gripRear: 2.0,
+            // 사이드 브레이크 시 뒷바퀴 그립 상실 비율
+            ebrakeFrictionMultiplier: 0.2,
+           
+            // 엔진 및 저항
+            engineForce: 8000,
+            brakeForce: 12000,
+            drag: 5.0, // 공기 저항
+            rollingResist: 30.0, // 구름 저항
+           
+            maxSteer: 0.6 // 최대 조향각 (라디안)
+        };
 
-        const dirLight = new THREE.DirectionalLight(0xffaa55, 0.6); // 약간 노란빛/주황빛
-        dirLight.position.set(-50, 100, 50);
-        dirLight.castShadow = true;
-        dirLight.shadow.camera.top = 100;
-        dirLight.shadow.camera.bottom = -100;
-        dirLight.shadow.camera.left = -100;
-        dirLight.shadow.camera.right = 100;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        scene.add(dirLight);
+        // 입력 상태
+        const keys = { w: false, a: false, s: false, d: false, space: false };
 
-        // --- 3. FPS 플레이어 및 카메라 컨트롤러 ---
-        // 카메라 회전을 위한 몸체(Yaw)와 머리(Pitch) 구조 생성
-        const playerBody = new THREE.Object3D();
-        playerBody.position.y = 2; // 플레이어 눈높이
-        scene.add(playerBody);
+        // 드리프트 점수 관련
+        let isDrifting = false;
+        let currentDriftScore = 0;
+        let driftMultiplier = 1;
 
-        const pitchObject = new THREE.Object3D();
-        playerBody.add(pitchObject);
-        pitchObject.add(camera);
+        // DOM 요소
+        const uiElements = {
+            start: document.getElementById('startScreen'),
+            over: document.getElementById('gameOverScreen'),
+            huds: document.querySelectorAll('.hud-container'),
+            speed: document.getElementById('speedValue'),
+            score: document.getElementById('scoreVal'),
+            timer: document.getElementById('timerBoard'),
+            driftVal: document.getElementById('driftVal'),
+            driftBoard: document.getElementById('driftScoreBoard'),
+            finalScore: document.getElementById('finalScore')
+        };
 
-        // 플레이어 물리 변수
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-        let moveForward = false;
-        let moveBackward = false;
-        let moveLeft = false;
-        let moveRight = false;
-        let canJump = false;
+        // --- 초기화 함수 ---
+        function init() {
+            // 1. 씬 구성
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e); // 어두운 밤하늘 색
+            scene.fog = new THREE.Fog(0x1a1a2e, 20, 150);
 
-        let playerHP = 100;
-        let score = 0;
-        let isGameOver = false;
+            // 2. 카메라
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+           
+            // 3. 렌더러
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
-        const hpUI = document.getElementById('health');
-        const scoreUI = document.getElementById('score');
-        const blocker = document.getElementById('blocker');
-        const playBtn = document.getElementById('play-btn');
-        const damageOverlay = document.getElementById('damage-overlay');
+            // 4. 조명
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+            scene.add(ambientLight);
 
-        // 포인터 락(마우스 가두기) 이벤트
-        blocker.addEventListener('click', () => {
-            if (isGameOver) {
-                resetGame();
-            }
-            document.body.requestPointerLock();
-        });
+            // 주 조명 (달빛/가로등 느낌)
+            const dirLight = new THREE.DirectionalLight(0x74b9ff, 0.8);
+            dirLight.position.set(50, 100, 50);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 10;
+            dirLight.shadow.camera.far = 200;
+            const d = 50;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            scene.add(dirLight);
 
-        document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === document.body) {
-                blocker.style.display = 'none';
-            } else {
-                if (!isGameOver) blocker.style.display = 'flex';
-                playBtn.innerText = "클릭하여 계속하기";
-            }
-        });
+            // 차량 헤드라이트를 위한 빈 그룹 미리 생성
+            const headlights = new THREE.Group();
+            scene.add(headlights);
 
-        // 마우스 이동으로 시점 회전
-        document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement === document.body && !isGameOver) {
-                const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-                const movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+            // 5. 트랙 생성
+            createTrack();
 
-                // 좌우 회전 (Body)
-                playerBody.rotation.y -= movementX * 0.002;
-                // 상하 회전 (Pitch)
-                pitchObject.rotation.x -= movementY * 0.002;
-                // 고개 각도 제한 (-90도 ~ 90도)
-                pitchObject.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchObject.rotation.x));
-            }
-        });
+            // 6. 자동차 생성
+            createCar();
 
-        // 키보드 이동 이벤트
-        document.addEventListener('keydown', (e) => {
-            switch (e.code) {
-                case 'KeyW': moveForward = true; break;
-                case 'KeyA': moveLeft = true; break;
-                case 'KeyS': moveBackward = true; break;
-                case 'KeyD': moveRight = true; break;
-                case 'Space': 
-                    if (canJump === true) velocity.y += 15; // 점프력
-                    canJump = false;
-                    break;
-            }
-        });
+            // 7. 컨트롤 설정
+            setupControls();
+            window.addEventListener('resize', onWindowResize);
 
-        document.addEventListener('keyup', (e) => {
-            switch (e.code) {
-                case 'KeyW': moveForward = false; break;
-                case 'KeyA': moveLeft = false; break;
-                case 'KeyS': moveBackward = false; break;
-                case 'KeyD': moveRight = false; break;
-            }
-        });
-
-        // --- 4. 무기 (총기 모델링) ---
-        const weaponGroup = new THREE.Group();
-        
-        // 총열 (Barrel)
-        const barrelGeo = new THREE.BoxGeometry(0.1, 0.1, 0.8);
-        const matDark = new THREE.MeshLambertMaterial({ color: 0x222222 });
-        const barrel = new THREE.Mesh(barrelGeo, matDark);
-        barrel.position.set(0, 0, -0.4);
-        weaponGroup.add(barrel);
-
-        // 총몸 (Body)
-        const gunBodyGeo = new THREE.BoxGeometry(0.15, 0.2, 0.4);
-        const gunBody = new THREE.Mesh(gunBodyGeo, matDark);
-        gunBody.position.set(0, -0.05, 0);
-        weaponGroup.add(gunBody);
-
-        // 조준경 (Scope)
-        const scopeGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.2, 8);
-        scopeGeo.rotateX(Math.PI / 2);
-        const matBlue = new THREE.MeshLambertMaterial({ color: 0x00aaff });
-        const scope = new THREE.Mesh(scopeGeo, matBlue);
-        scope.position.set(0, 0.08, -0.1);
-        weaponGroup.add(scope);
-
-        // 카메라 우측 하단에 총 배치
-        weaponGroup.position.set(0.3, -0.2, -0.5);
-        pitchObject.add(weaponGroup); // 시점에 따라 총이 위아래로 움직이도록 추가
-
-        // 총구 화염 (Muzzle Flash) 라이트
-        const muzzleFlash = new THREE.PointLight(0xffdd00, 0, 5);
-        muzzleFlash.position.set(0, 0, -0.9);
-        weaponGroup.add(muzzleFlash);
-
-        // --- 5. 맵 환경 (아레나) ---
-        // 바닥
-        const floorGeo = new THREE.PlaneGeometry(200, 200);
-        // 바닥에 그리드 무늬 생성
-        const canvas = document.createElement('canvas');
-        canvas.width = 128; canvas.height = 128;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#111'; ctx.fillRect(0,0,128,128);
-        ctx.strokeStyle = '#00FFCC'; ctx.lineWidth = 2;
-        ctx.strokeRect(0,0,128,128);
-        const floorTex = new THREE.CanvasTexture(canvas);
-        floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-        floorTex.repeat.set(50, 50);
-
-        const floorMat = new THREE.MeshLambertMaterial({ map: floorTex });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        scene.add(floor);
-
-        // 엄폐물 (상자들)
-        const obstacles = [];
-        const boxGeo = new THREE.BoxGeometry(4, 4, 4);
-        const boxMat = new THREE.MeshLambertMaterial({ color: 0x444455 });
-        for(let i=0; i<40; i++) {
-            const box = new THREE.Mesh(boxGeo, boxMat);
-            box.position.set(
-                (Math.random() - 0.5) * 150,
-                2,
-                (Math.random() - 0.5) * 150
-            );
-            // 플레이어 시작 위치 근처 비우기
-            if (box.position.length() < 15) continue; 
-            
-            box.castShadow = true;
-            box.receiveShadow = true;
-            scene.add(box);
-            obstacles.push(box);
+            // 애니메이션 시작
+            lastTime = performance.now();
+            requestAnimationFrame(animate);
         }
 
-        // --- 6. 사격 시스템 (Raycaster) ---
-        const raycaster = new THREE.Raycaster();
-        let recoilTime = 0;
+        // --- 트랙 (서킷) 생성 ---
+        function createTrack() {
+            // 거대한 바닥 (아스팔트 바깥쪽 흙/잔디)
+            const groundGeo = new THREE.PlaneGeometry(500, 500);
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: 0x2d3436,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.1; // 트랙보다 약간 아래
+            ground.receiveShadow = true;
+            scene.add(ground);
 
-        document.addEventListener('mousedown', (e) => {
-            if (document.pointerLockElement !== document.body || isGameOver) return;
-            if (e.button === 0) shoot(); // 좌클릭
-        });
+            // 심플한 8자 형태의 트랙 좌표 정의 (Curve)
+            const curve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3( 0, 0,  50),
+                new THREE.Vector3( 40, 0,  40),
+                new THREE.Vector3( 50, 0,   0),
+                new THREE.Vector3( 30, 0, -40),
+                new THREE.Vector3(  0, 0, -10), // 교차점 부근
+                new THREE.Vector3(-30, 0,  40),
+                new THREE.Vector3(-50, 0,   0),
+                new THREE.Vector3(-40, 0, -40),
+                new THREE.Vector3(  0, 0, -50),
+                new THREE.Vector3( 40, 0, -40)
+            ]);
+            curve.closed = true;
 
-        function shoot() {
-            // 총 반동 애니메이션 트리거
-            recoilTime = 1.0;
-            // 총구 화염 켬
-            muzzleFlash.intensity = 2;
+            // TubeGeometry를 활용해 트랙 생성 (두께를 0으로 압축하여 평면 도로 생성)
+            const trackWidth = 12;
+            const tubeGeo = new THREE.TubeGeometry(curve, 100, trackWidth, 2, true);
+           
+            // TubeGeometry의 꼭짓점들을 평탄화 (y를 0으로)
+            const positions = tubeGeo.attributes.position;
+            for(let i=0; i<positions.count; i++) {
+                positions.setY(i, 0);
+            }
+            tubeGeo.computeVertexNormals(); // 법선 재계산
 
-            // 카메라 정중앙에서 레이저 발사
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            // 아스팔트 재질
+            const trackMat = new THREE.MeshStandardMaterial({
+                color: 0x111111,
+                roughness: 0.7,
+                metalness: 0.2
+            });
 
-            // 적(enemies) 배열과 충돌 검사
-            const intersects = raycaster.intersectObjects(enemies);
+            const trackMesh = new THREE.Mesh(tubeGeo, trackMat);
+            trackMesh.receiveShadow = true;
+            scene.add(trackMesh);
+           
+            // 시각적 요소: 가로등 추가 (트랙 외곽을 따라)
+            const points = curve.getPoints(30);
+            const lampGeo = new THREE.CylinderGeometry(0.2, 0.2, 5);
+            const lampMat = new THREE.MeshStandardMaterial({color: 0x333333});
+            const lightBoxGeo = new THREE.BoxGeometry(1, 0.5, 1);
+            const lightBoxMat = new THREE.MeshBasicMaterial({color: 0xffffff});
 
-            if (intersects.length > 0) {
-                const hitObj = intersects[0].object;
-                if (hitObj.isEnemy) {
-                    // 적 타격 처리
-                    hitObj.health -= 1;
-                    hitObj.material.color.setHex(0xffffff); // 맞으면 잠시 하얗게 깜빡임
-                    setTimeout(() => {
-                        if(hitObj.material) hitObj.material.color.setHex(0xff3333);
-                    }, 100);
+            points.forEach((pt, index) => {
+                if(index % 2 === 0) { // 간격 띄워서 배치
+                    const lampGroup = new THREE.Group();
+                   
+                    const pole = new THREE.Mesh(lampGeo, lampMat);
+                    pole.position.y = 2.5;
+                    lampGroup.add(pole);
 
-                    // 파티클/히트 이펙트 생성
-                    createHitEffect(intersects[0].point);
+                    const lightBox = new THREE.Mesh(lightBoxGeo, lightBoxMat);
+                    lightBox.position.set(0, 5, 0.5);
+                    lampGroup.add(lightBox);
 
-                    if (hitObj.health <= 0) {
-                        // 적 사망
-                        scene.remove(hitObj);
-                        enemies.splice(enemies.indexOf(hitObj), 1);
-                        hitObj.geometry.dispose();
-                        hitObj.material.dispose();
-                        score += 10;
-                        scoreUI.innerText = `SCORE: ${score}`;
+                    // PointLight로 주변 밝히기
+                    const pl = new THREE.PointLight(0xffddaa, 0.5, 20);
+                    pl.position.set(0, 5, 1);
+                    lampGroup.add(pl);
+
+                    // 트랙 바깥쪽으로 밀어내기 위해 노멀 계산
+                    const tangent = curve.getTangent(index/30);
+                    const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize(); // y축 회전
+                   
+                    // 지그재그로 배치 (좌/우)
+                    const side = index % 4 === 0 ? 1 : -1;
+                   
+                    lampGroup.position.copy(pt).add(normal.multiplyScalar((trackWidth + 2) * side));
+                    lampGroup.lookAt(pt); // 트랙 중앙을 바라보게
+                   
+                    scene.add(lampGroup);
+                }
+            });
+        }
+
+        // --- 자동차 (플레이어) 생성 ---
+        function createCar() {
+            carGroup = new THREE.Group();
+           
+            // 1. 차체 (Chassis) - 스포티한 느낌
+            carChassis = new THREE.Group();
+           
+            // 메인 바디
+            const bodyGeo = new THREE.BoxGeometry(2, 0.5, 4.5);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.3, metalness: 0.6 }); // 빨간색 스포츠카
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.4;
+            body.castShadow = true;
+            carChassis.add(body);
+
+            // 캐빈 (탑승 공간)
+            const cabinGeo = new THREE.BoxGeometry(1.6, 0.5, 2.2);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 }); // 검은 유리창
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.set(0, 0.9, -0.3);
+            cabin.castShadow = true;
+            carChassis.add(cabin);
+
+            // 스포일러 (윙)
+            const wingGeo = new THREE.BoxGeometry(2.2, 0.1, 0.5);
+            const wingMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const wing = new THREE.Mesh(wingGeo, wingMat);
+            wing.position.set(0, 1.0, -2.0);
+            carChassis.add(wing);
+
+            // 윙 지지대
+            const strutGeo = new THREE.BoxGeometry(0.1, 0.3, 0.2);
+            const strut1 = new THREE.Mesh(strutGeo, wingMat);
+            strut1.position.set(-0.6, 0.8, -2.0);
+            carChassis.add(strut1);
+            const strut2 = new THREE.Mesh(strutGeo, wingMat);
+            strut2.position.set(0.6, 0.8, -2.0);
+            carChassis.add(strut2);
+           
+            // 헤드라이트 조명
+            const createHeadlight = (x, z) => {
+                const lightGeo = new THREE.PlaneGeometry(0.4, 0.2);
+                const lightMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+                const l = new THREE.Mesh(lightGeo, lightMat);
+                l.position.set(x, 0.5, z);
+                // l.rotation.y = Math.PI;
+                carChassis.add(l);
+               
+                // 실제 스포트라이트
+                const spotLight = new THREE.SpotLight(0xffffff, 2, 40, Math.PI/6, 0.5, 1);
+                spotLight.position.set(x, 0.5, z);
+                spotLight.target.position.set(x, 0.5, z + 5);
+                carChassis.add(spotLight);
+                carChassis.add(spotLight.target);
+            };
+            createHeadlight(-0.7, 2.26);
+            createHeadlight(0.7, 2.26);
+
+            // 후미등 (Brake lights)
+            const tailGeo = new THREE.PlaneGeometry(0.5, 0.15);
+            const tailMat = new THREE.MeshBasicMaterial({color: 0x550000}); // 기본 어두운 빨강
+            const tailL = new THREE.Mesh(tailGeo, tailMat);
+            tailL.position.set(-0.6, 0.5, -2.26);
+            tailL.rotation.y = Math.PI;
+            tailL.name = "tailL";
+            carChassis.add(tailL);
+           
+            const tailR = new THREE.Mesh(tailGeo, tailMat);
+            tailR.position.set(0.6, 0.5, -2.26);
+            tailR.rotation.y = Math.PI;
+            tailR.name = "tailR";
+            carChassis.add(tailR);
+
+            carGroup.add(carChassis);
+
+            // 2. 바퀴 (Wheels)
+            const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 16);
+            // 실린더는 기본적으로 Y축으로 서있으므로 회전 필요
+            wheelGeo.rotateZ(Math.PI / 2);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+           
+            // 휠 테두리 (합금 느낌)
+            const rimGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.32, 8);
+            rimGeo.rotateZ(Math.PI / 2);
+            const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
+
+            frontWheels = new THREE.Group();
+            rearWheels = new THREE.Group();
+
+            const createWheelMesh = () => {
+                const w = new THREE.Group();
+                const tire = new THREE.Mesh(wheelGeo, wheelMat);
+                tire.castShadow = true;
+                w.add(tire);
+                w.add(new THREE.Mesh(rimGeo, rimMat));
+                return w;
+            };
+
+            // 앞바퀴 2개 (조향 가능하게 그룹화)
+            const fl = createWheelMesh(); fl.position.set(-1.1, 0.35, 0);
+            const fr = createWheelMesh(); fr.position.set(1.1, 0.35, 0);
+            frontWheels.add(fl); frontWheels.add(fr);
+            frontWheels.position.z = physics.cgToFront; // 모델상 z+ 가 앞쪽
+           
+            // 뒷바퀴 2개
+            const rl = createWheelMesh(); rl.position.set(-1.1, 0.35, 0);
+            const rr = createWheelMesh(); rr.position.set(1.1, 0.35, 0);
+            rearWheels.add(rl); rearWheels.add(rr);
+            rearWheels.position.z = -physics.cgToRear;
+
+            carGroup.add(frontWheels);
+            carGroup.add(rearWheels);
+
+            scene.add(carGroup);
+           
+            // 초기 위치 (트랙 위)
+            physics.position.set(0, 0, 50);
+            physics.heading = Math.PI; // -z 방향을 보게 설정
+        }
+
+        // --- 입력 설정 ---
+        function setupControls() {
+            // 키보드
+            document.addEventListener('keydown', (e) => {
+                const key = e.key.toLowerCase();
+                if(key === 'w' || key === 'arrowup') keys.w = true;
+                if(key === 's' || key === 'arrowdown') keys.s = true;
+                if(key === 'a' || key === 'arrowleft') keys.a = true;
+                if(key === 'd' || key === 'arrowright') keys.d = true;
+                if(key === ' ') keys.space = true;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                const key = e.key.toLowerCase();
+                if(key === 'w' || key === 'arrowup') keys.w = false;
+                if(key === 's' || key === 'arrowdown') keys.s = false;
+                if(key === 'a' || key === 'arrowleft') keys.a = false;
+                if(key === 'd' || key === 'arrowright') keys.d = false;
+                if(key === ' ') keys.space = false;
+            });
+
+            // 모바일 터치
+            const bindTouch = (id, keyName) => {
+                const el = document.getElementById(id);
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+            };
+
+            bindTouch('leftBtn', 'a');
+            bindTouch('rightBtn', 'd');
+            bindTouch('gasBtn', 'w');
+            bindTouch('brakeBtn', 'space'); // 모바일에서 브레이크 버튼을 사이드브레이크(스페이스)로 매핑
+        }
+
+        // --- 게임 진행 관련 ---
+        function startGame() {
+            // 초기화
+            physics.position.set(0, 0, 50);
+            physics.velocity.set(0, 0, 0);
+            physics.worldVelocity.set(0, 0, 0);
+            physics.heading = Math.PI;
+            physics.angularVelocity = 0;
+           
+            totalScore = 0;
+            timeLeft = 60;
+            isDrifting = false;
+            currentDriftScore = 0;
+           
+            uiElements.score.innerText = '0';
+            updateTimerDisplay();
+
+            // UI 전환
+            uiElements.start.style.display = 'none';
+            uiElements.over.style.display = 'none';
+            uiElements.huds.forEach(el => el.style.display = 'block'); // 클래스로 묶인 HUD 모두 표시
+            uiElements.driftBoard.style.opacity = '0';
+           
+            // 기존 스키드마크/연기 제거
+            skidmarks.forEach(m => scene.remove(m));
+            skidmarks = [];
+
+            gameState = 'playing';
+           
+            // 타이머 시작
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if(gameState === 'playing') {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    if(timeLeft <= 0) {
+                        gameOver();
                     }
                 }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const s = (timeLeft % 60).toString().padStart(2, '0');
+            uiElements.timer.innerText = `${m}:${s}`;
+            if(timeLeft <= 10) {
+                uiElements.timer.style.color = '#e74c3c';
             } else {
-                // 벽/바닥을 맞췄을 때의 이펙트
-                const obsIntersects = raycaster.intersectObjects([...obstacles, floor]);
-                if (obsIntersects.length > 0) {
-                    createHitEffect(obsIntersects[0].point, true);
+                uiElements.timer.style.color = '#ecf0f1';
+            }
+        }
+
+        function gameOver() {
+            gameState = 'gameover';
+            clearInterval(timerInterval);
+           
+            // 진행중이던 드리프트 점수 정산
+            if(isDrifting && currentDriftScore > 0) {
+                totalScore += Math.floor(currentDriftScore);
+                uiElements.score.innerText = totalScore;
+            }
+           
+            uiElements.huds.forEach(el => {
+                if(el.id !== 'totalScoreBoard') el.style.display = 'none';
+            });
+            uiElements.driftBoard.style.opacity = '0';
+           
+            uiElements.finalScore.innerText = totalScore;
+            uiElements.over.style.display = 'block';
+        }
+
+        // --- 자동차 물리 모델 업데이트 (Arcade-Sim Hybrid) ---
+        function updatePhysics(dt) {
+            // 1. 입력 처리
+            let steerInput = 0;
+            if (keys.a) steerInput += 1;
+            if (keys.d) steerInput -= 1;
+           
+            // 조향 부드럽게 적용 (스무딩)
+            const targetSteer = steerInput * physics.maxSteer;
+            physics.steerAngle += (targetSteer - physics.steerAngle) * 10 * dt;
+
+            physics.throttle = keys.w ? 1 : 0;
+            physics.brake = keys.s ? 1 : 0;
+            physics.ebrake = keys.space;
+
+            // 브레이크 등 시각 효과
+            const isBraking = physics.brake > 0 || physics.ebrake;
+            const tailColor = isBraking ? 0xff0000 : 0x550000;
+            carChassis.getObjectByName("tailL").material.color.setHex(tailColor);
+            carChassis.getObjectByName("tailR").material.color.setHex(tailColor);
+
+            // 2. 차량 로컬 좌표계 (단위 벡터)
+            const sn = Math.sin(physics.heading);
+            const cs = Math.cos(physics.heading);
+           
+            // 현재 월드 속도를 차량 로컬 속도(z:앞뒤, x:좌우)로 변환
+            physics.velocity.z = cs * physics.worldVelocity.z + sn * physics.worldVelocity.x; // 전진 방향 속도
+            physics.velocity.x = cs * physics.worldVelocity.x - sn * physics.worldVelocity.z; // 측면(슬립) 방향 속도
+           
+            // 3. 힘 계산 (로컬 공간)
+            let tractionForce = 0;
+           
+            // 가속 (엔진 힘)
+            if (physics.throttle > 0) {
+                tractionForce = physics.engineForce * physics.throttle;
+            } else if (physics.brake > 0) {
+                // 후진 또는 브레이크
+                if(physics.velocity.z > 0.5) {
+                    tractionForce = -physics.brakeForce; // 브레이킹
+                } else {
+                    tractionForce = -physics.engineForce * 0.5; // 후진 기어
+                }
+            }
+           
+            // 저항 (공기 저항 + 구름 저항)
+            const speed = physics.velocity.z;
+            const dragForce = -physics.drag * speed * Math.abs(speed);
+            const rollForce = -physics.rollingResist * speed;
+           
+            const totalLongForce = tractionForce + dragForce + rollForce;
+           
+            // 4. 측면 힘 (코너링 및 드리프트)
+            // 슬립 앵글 (차가 바라보는 방향과 실제 이동 방향의 차이)
+            let slipAngleFront = 0;
+            let slipAngleRear = 0;
+           
+            if (Math.abs(speed) > 0.1) {
+                // 앞바퀴 슬립각: (측면속도 + 앞바퀴까지의거리 * 회전속도) / 전진속도 - 조향각
+                slipAngleFront = Math.atan2(physics.velocity.x + physics.cgToFront * physics.angularVelocity, Math.abs(speed)) - Math.sign(speed) * physics.steerAngle;
+                // 뒷바퀴 슬립각: (측면속도 - 뒷바퀴까지의거리 * 회전속도) / 전진속도
+                slipAngleRear  = Math.atan2(physics.velocity.x - physics.cgToRear * physics.angularVelocity,  Math.abs(speed));
+            }
+
+            // 타이어 측면 그립력 (간소화된 Pacejka Magic Formula 형태)
+            // 사이드 브레이크 당기면 뒷바퀴 그립을 대폭 감소시켜 꼬리가 미끄러지게(오버스티어) 만듦
+            let rearGripMultiplier = physics.ebrake ? physics.ebrakeFrictionMultiplier : 1.0;
+           
+            // 속도가 너무 낮을 때 무한 회전 방지
+            const velocityMultiplier = Math.min(1.0, Math.abs(speed) / 5.0);
+
+            // 측면 힘 (Cornering Force)
+            const cornerStiffnessFront = 50000;
+            const cornerStiffnessRear = 50000 * rearGripMultiplier;
+           
+            let latForceFront = -cornerStiffnessFront * slipAngleFront * velocityMultiplier;
+            let latForceRear  = -cornerStiffnessRear * slipAngleRear * velocityMultiplier;
+           
+            // 그립 한계 (최대 마찰력) 적용
+            const maxGripFront = physics.gripFront * physics.mass * 9.8;
+            const maxGripRear  = physics.gripRear * physics.mass * 9.8 * rearGripMultiplier;
+           
+            latForceFront = Math.max(-maxGripFront, Math.min(maxGripFront, latForceFront));
+            latForceRear  = Math.max(-maxGripRear, Math.min(maxGripRear, latForceRear));
+
+            // 총 측면 힘
+            const totalLatForce = latForceFront * Math.cos(physics.steerAngle) + latForceRear;
+           
+            // 5. 가속도 적용
+            const accelZ = totalLongForce / physics.mass;
+            const accelX = totalLatForce / physics.mass;
+
+            // 로컬 가속도를 월드 가속도로 변환
+            const worldAccelX = cs * accelX + sn * accelZ;
+            const worldAccelZ = -sn * accelX + cs * accelZ;
+
+            // 속도 업데이트
+            physics.worldVelocity.x += worldAccelX * dt;
+            physics.worldVelocity.z += worldAccelZ * dt;
+
+            // 위치 업데이트
+            physics.position.x += physics.worldVelocity.x * dt;
+            physics.position.z += physics.worldVelocity.z * dt;
+
+            // 6. 회전 (Yaw) 계산
+            const torque = (physics.cgToFront * latForceFront * Math.cos(physics.steerAngle)) - (physics.cgToRear * latForceRear);
+            const angularAccel = torque / physics.inertia;
+           
+            physics.angularVelocity += angularAccel * dt;
+           
+            // 회전 저항 (자동으로 직진하려는 성향 및 스핀 방지)
+            physics.angularVelocity -= physics.angularVelocity * 2.0 * dt;
+           
+            physics.heading += physics.angularVelocity * dt;
+
+            // 7. 3D 모델 업데이트
+            carGroup.position.copy(physics.position);
+            carGroup.rotation.y = physics.heading;
+
+            // 앞바퀴 조향 회전 및 바퀴 구름 애니메이션
+            const wheelSpeed = physics.velocity.z / 0.35; // 속도 / 바퀴반경
+            frontWheels.children.forEach(w => {
+                w.rotation.y = physics.steerAngle;
+                w.children[0].rotation.x += wheelSpeed * dt; // 타이어
+                w.children[1].rotation.x += wheelSpeed * dt; // 림
+            });
+            rearWheels.children.forEach(w => {
+                // 뒷바퀴는 조향 없음, 사이드브레이크 시 구르지 않음
+                if(!physics.ebrake) {
+                    w.children[0].rotation.x += wheelSpeed * dt;
+                    w.children[1].rotation.x += wheelSpeed * dt;
+                }
+            });
+
+            // 8. 속도계 업데이트
+            const speedKmh = Math.abs(physics.velocity.z) * 3.6; // m/s to km/h
+            uiElements.speed.innerText = Math.floor(speedKmh);
+
+            // --- 9. 드리프트 감지 및 점수 ---
+            // 일정 측면 속도 이상, 일정 속도 이상일 때 드리프트로 판정
+            const isSlipping = Math.abs(physics.velocity.x) > 3.0 && speedKmh > 30;
+           
+            if (isSlipping) {
+                if (!isDrifting) {
+                    isDrifting = true;
+                    currentDriftScore = 0;
+                    driftMultiplier = 1;
+                    uiElements.driftBoard.style.opacity = '1';
+                }
+               
+                // 드리프트 각도(슬립 각도)가 클수록, 속도가 빠를수록 점수 빠르게 증가
+                const driftAngleScore = Math.abs(physics.velocity.x) * 0.1;
+                const speedScore = speedKmh * 0.01;
+               
+                currentDriftScore += (driftAngleScore + speedScore) * driftMultiplier;
+                driftMultiplier += dt * 0.5; // 오래 유지할수록 배수 증가
+               
+                uiElements.driftVal.innerText = Math.floor(currentDriftScore);
+               
+                // 타이어 자국(스키드마크) 생성
+                createSkidmark(dt);
+            } else {
+                if (isDrifting) {
+                    // 드리프트 종료 후 점수 합산
+                    isDrifting = false;
+                    totalScore += Math.floor(currentDriftScore);
+                    uiElements.score.innerText = totalScore;
+                   
+                    // 점수판 서서히 사라짐
+                    setTimeout(() => {
+                        if(!isDrifting) uiElements.driftBoard.style.opacity = '0';
+                    }, 1000);
                 }
             }
         }
 
-        // 타격 파티클 이펙트
-        const hitEffects = [];
-        function createHitEffect(position, isWall = false) {
-            const geo = new THREE.SphereGeometry(0.2, 8, 8);
-            const mat = new THREE.MeshBasicMaterial({ 
-                color: isWall ? 0xaaaaaa : 0xffaa00, 
-                transparent: true, opacity: 1 
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.copy(position);
-            scene.add(mesh);
-            hitEffects.push({ mesh: mesh, life: 1.0 });
+        // --- 시각 효과 (스키드마크) ---
+        function createSkidmark(dt) {
+            // 프레임당 너무 많이 생성되지 않도록 제한
+            if(Math.random() > 0.5) return;
+
+            // 뒷바퀴 위치 월드 좌표 구하기
+            const rlPos = new THREE.Vector3();
+            const rrPos = new THREE.Vector3();
+           
+            // rearWheels 그룹 안의 메쉬 위치를 월드 좌표로 변환
+            rearWheels.children[0].getWorldPosition(rlPos);
+            rearWheels.children[1].getWorldPosition(rrPos);
+           
+            // 바닥에 살짝 띄우기
+            rlPos.y = 0.05;
+            rrPos.y = 0.05;
+
+            const makeMark = (pos) => {
+                const geo = new THREE.PlaneGeometry(0.4, 0.4);
+                // 회전 방향 맞추기 (차량의 진행 방향)
+                geo.rotateX(-Math.PI / 2);
+               
+                // 불투명도를 랜덤하게 주어 자연스럽게
+                const mat = new THREE.MeshBasicMaterial({
+                    color: 0x000000,
+                    transparent: true,
+                    opacity: 0.3 + Math.random() * 0.2,
+                    depthWrite: false
+                });
+               
+                const mark = new THREE.Mesh(geo, mat);
+                mark.position.copy(pos);
+                // 차량 회전과 동일하게 맞춰 자국이 남도록 함
+                mark.rotation.y = physics.heading;
+                scene.add(mark);
+                skidmarks.push(mark);
+               
+                // 오래된 자국 지우기 (최대 150개 유지)
+                if(skidmarks.length > 150) {
+                    const old = skidmarks.shift();
+                    scene.remove(old);
+                    old.geometry.dispose();
+                    old.material.dispose();
+                }
+            };
+
+            makeMark(rlPos);
+            makeMark(rrPos);
         }
 
-        // --- 7. 적(Enemy) 시스템 ---
-        const enemies = [];
-        const enemyGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-        const enemyMatBase = new THREE.MeshLambertMaterial({ color: 0xff3333 }); // 붉은 적
-
-        function spawnEnemy() {
-            if (isGameOver) return;
-            
-            // 너무 많아지지 않게 제한
-            if (enemies.length > 20) return;
-
-            const enemyMat = enemyMatBase.clone();
-            const enemy = new THREE.Mesh(enemyGeo, enemyMat);
-            
-            // 플레이어 주변 무작위 가장자리에 스폰
-            const angle = Math.random() * Math.PI * 2;
-            const radius = 40 + Math.random() * 20;
-            enemy.position.set(
-                playerBody.position.x + Math.cos(angle) * radius,
-                1.5,
-                playerBody.position.z + Math.sin(angle) * radius
-            );
-            
-            enemy.castShadow = true;
-            enemy.isEnemy = true;
-            enemy.health = 3; // 총 3대 맞아야 죽음
-            
-            // 드론처럼 둥둥 떠다니는 효과를 위한 변수
-            enemy.hoverOffset = Math.random() * Math.PI * 2; 
-
-            scene.add(enemy);
-            enemies.push(enemy);
-        }
-
-        // 2초마다 적 생성
-        setInterval(spawnEnemy, 2000);
-        // 초기 적 스폰
-        for(let i=0; i<5; i++) spawnEnemy();
-
-
-        // --- 8. 게임 오버 / 리셋 ---
-        function takeDamage() {
-            if (isGameOver) return;
-            playerHP -= 10;
-            hpUI.innerText = `HP: ${playerHP}`;
-            
-            // 피격 효과 (화면 빨개짐)
-            damageOverlay.style.opacity = '1';
-            setTimeout(() => { damageOverlay.style.opacity = '0'; }, 150);
-
-            if (playerHP <= 0) {
-                isGameOver = true;
-                hpUI.innerText = `HP: 0`;
-                document.exitPointerLock();
-                blocker.style.display = 'flex';
-                playBtn.innerText = "GAME OVER";
-                document.getElementById('instructions').innerHTML += `<br><br><span style="color:#ffd700; font-size:1.5rem">최종 점수: ${score}</span><br><br>클릭하여 다시 시작`;
+        // 카메라 업데이트 (차량 따라가기)
+        function updateCamera() {
+            // 차량 뒤쪽 위 목표 위치 계산
+            const relativeCameraOffset = new THREE.Vector3(0, 4, -8);
+           
+            // 차량의 로컬 좌표를 월드 좌표로 변환할 행렬 (회전만 적용)
+            const cameraMatrix = new THREE.Matrix4();
+            // 드리프트 중 카메라가 차 꽁무니를 완전히 따라가면 어지러움,
+            // 따라서 실제 heading(차체방향)과 velocity 방향(이동방향)을 섞어 부드럽게 추적
+           
+            // 이동 방향 벡터
+            let velDir = new THREE.Vector3(physics.worldVelocity.x, 0, physics.worldVelocity.z);
+            if (velDir.lengthSq() > 0.1) {
+                velDir.normalize();
+            } else {
+                velDir.set(Math.sin(physics.heading), 0, Math.cos(physics.heading)); // 멈춰있을 땐 차체 방향
             }
+           
+            // 이동 방향 각도
+            const moveHeading = Math.atan2(velDir.x, velDir.z);
+           
+            // 카메라 회전 = 차체 각도 70% + 이동 방향 각도 30% (역동적인 연출)
+            // 각도 차이 계산 시 랩어라운드(360도) 문제 처리
+            let diff = moveHeading - physics.heading;
+            while(diff < -Math.PI) diff += Math.PI * 2;
+            while(diff > Math.PI) diff -= Math.PI * 2;
+           
+            const targetCamHeading = physics.heading + diff * 0.3;
+
+            cameraMatrix.makeRotationY(targetCamHeading);
+           
+            let cameraPos = relativeCameraOffset.applyMatrix4(cameraMatrix);
+            cameraPos.add(carGroup.position);
+
+            // 카메라 위치 보간 (Lerp) - 부드러운 움직임
+            camera.position.lerp(cameraPos, 0.1);
+           
+            // 항상 차체를 바라봄
+            const lookAtPos = carGroup.position.clone();
+            lookAtPos.y += 1.0; // 차체보다 살짝 위를 바라봄
+            camera.lookAt(lookAtPos);
         }
 
-        function resetGame() {
-            playerHP = 100;
-            score = 0;
-            hpUI.innerText = `HP: 100`;
-            scoreUI.innerText = `SCORE: 0`;
-            isGameOver = false;
-            
-            // 플레이어 위치 초기화
-            playerBody.position.set(0, 2, 0);
-            velocity.set(0,0,0);
-
-            // 적 초기화
-            enemies.forEach(e => { scene.remove(e); e.geometry.dispose(); e.material.dispose(); });
-            enemies.length = 0;
-            for(let i=0; i<5; i++) spawnEnemy();
-
-            // UI 텍스트 복구
-            document.getElementById('instructions').innerHTML = `
-                <div id="play-btn">클릭하여 전투 시작</div>
-                <div>마우스로 시점을 이동하고, 좌클릭으로 총을 쏘세요.<br>
-                몰려오는 붉은 적들을 파괴하여 생존하십시오.</div>
-                <br>
-                <div style="color:#aaa; font-size:0.9rem;">(게임 중 마우스 잠금을 해제하려면 ESC 키를 누르세요)</div>
-            `;
-            playBtn = document.getElementById('play-btn'); // DOM 갱신 후 변수 재할당
+        // 창 크기 변경 대응
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-
-        // --- 9. 메인 게임 루프 ---
-        const clock = new THREE.Clock();
-
-        function animate() {
+        // --- 메인 애니메이션 루프 ---
+        function animate(now) {
             requestAnimationFrame(animate);
 
-            const delta = Math.min(clock.getDelta(), 0.1); // 프레임 저하 시 로직 꼬임 방지
+            // Delta time 계산 (초 단위)
+            let dt = (now - lastTime) / 1000;
+            lastTime = now;
+           
+            // 프레임 드랍 시 물리 폭주 방지 (최대 0.05초로 고정)
+            if (dt > 0.05) dt = 0.05;
 
-            if (document.pointerLockElement === document.body && !isGameOver) {
-                
-                // 1) 물리 / 이동 처리 (커스텀 FPS 컨트롤)
-                velocity.x -= velocity.x * 10.0 * delta; // 마찰력
-                velocity.z -= velocity.z * 10.0 * delta;
-                velocity.y -= 30.0 * delta; // 중력
-
-                direction.z = Number(moveForward) - Number(moveBackward);
-                direction.x = Number(moveRight) - Number(moveLeft);
-                direction.normalize(); // 대각선 이동 시 속도 증가 방지
-
-                const speed = 60.0;
-                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
-                if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
-
-                // 시점 방향 기준으로 앞뒤/좌우 이동 적용
-                playerBody.translateX(velocity.x * delta);
-                playerBody.translateZ(velocity.z * delta);
-                playerBody.position.y += velocity.y * delta;
-
-                // 바닥 충돌 (점프 착지)
-                if (playerBody.position.y < 2) {
-                    velocity.y = 0;
-                    playerBody.position.y = 2;
-                    canJump = true;
-                }
-
-                // 맵 경계선 제한
-                playerBody.position.x = Math.max(-95, Math.min(95, playerBody.position.x));
-                playerBody.position.z = Math.max(-95, Math.min(95, playerBody.position.z));
-
-                // 간단한 엄폐물 충돌 막기
-                for(let box of obstacles) {
-                    let dx = playerBody.position.x - box.position.x;
-                    let dz = playerBody.position.z - box.position.z;
-                    if(Math.abs(dx) < 2.5 && Math.abs(dz) < 2.5) {
-                        playerBody.position.x -= velocity.x * delta;
-                        playerBody.position.z -= velocity.z * delta;
-                    }
-                }
-
-                // 2) 무기 반동(Recoil) 애니메이션
-                if (recoilTime > 0) {
-                    recoilTime -= delta * 10;
-                    // 총이 뒤로 밀려남
-                    weaponGroup.position.z = -0.5 + Math.sin(recoilTime * Math.PI) * 0.15;
-                    weaponGroup.rotation.x = Math.sin(recoilTime * Math.PI) * 0.1;
-                } else {
-                    weaponGroup.position.z = -0.5;
-                    weaponGroup.rotation.x = 0;
-                }
-
-                // 총구 화염 소멸
-                if (muzzleFlash.intensity > 0) {
-                    muzzleFlash.intensity -= delta * 20;
-                }
-
-                // 3) 적(Enemy) AI 로직
-                const time = Date.now() * 0.003;
-                for (let i = enemies.length - 1; i >= 0; i--) {
-                    const enemy = enemies[i];
-                    
-                    // 플레이어 바라보기 (높이는 무시)
-                    const targetPos = playerBody.position.clone();
-                    targetPos.y = enemy.position.y;
-                    enemy.lookAt(targetPos);
-                    
-                    // 플레이어 향해 전진
-                    const distToPlayer = enemy.position.distanceTo(playerBody.position);
-                    if (distToPlayer > 1.5) {
-                        enemy.translateZ(3.0 * delta); // 이동 속도
-                    } else {
-                        // 플레이어와 충돌 (공격)
-                        takeDamage();
-                        
-                        // 적 소멸 (자폭)
-                        scene.remove(enemy);
-                        enemies.splice(i, 1);
-                        enemy.geometry.dispose();
-                        enemy.material.dispose();
-                        continue;
-                    }
-
-                    // 둥둥 떠다니는 애니메이션
-                    enemy.position.y = 1.5 + Math.sin(time + enemy.hoverOffset) * 0.3;
-                }
-
-                // 4) 타격 이펙트 애니메이션
-                for (let i = hitEffects.length - 1; i >= 0; i--) {
-                    const effect = hitEffects[i];
-                    effect.life -= delta * 4;
-                    effect.mesh.scale.setScalar(1 + (1 - effect.life) * 2);
-                    effect.mesh.material.opacity = effect.life;
-                    
-                    if (effect.life <= 0) {
-                        scene.remove(effect.mesh);
-                        effect.mesh.geometry.dispose();
-                        effect.mesh.material.dispose();
-                        hitEffects.splice(i, 1);
-                    }
+            if (gameState === 'playing') {
+                updatePhysics(dt);
+                updateCamera();
+            } else if (gameState === 'menu') {
+                // 메뉴 화면에서 자동차 회전 연출
+                if(carGroup) {
+                    carGroup.rotation.y += 0.01;
+                    camera.position.set(Math.sin(now * 0.0005) * 8, 4, Math.cos(now * 0.0005) * 8);
+                    camera.lookAt(carGroup.position);
                 }
             }
 
             renderer.render(scene, camera);
         }
 
-        // 화면 리사이즈
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        // 페이지 로드 시 초기화
+        window.onload = init;
 
-        // 루프 시작
-        animate();
     </script>
 </body>
 </html>
-
