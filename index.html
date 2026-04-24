@@ -2,1026 +2,839 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 드리프트 레이싱</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>무한 드리프트 레이싱</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #2c3e50;
-            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-            touch-action: none;
-            user-select: none;
+        body { margin: 0; overflow: hidden; background-color: #111; font-family: 'Pretendard', sans-serif; user-select: none; }
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; color: white;
         }
-
-        #gameCanvas {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-
-        /* UI 오버레이 스타일 */
-        #uiLayer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        }
-
-        .panel {
-            background: rgba(15, 20, 30, 0.85);
-            padding: 40px 60px;
-            border-radius: 15px;
-            pointer-events: auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            border: 2px solid #e74c3c;
-            backdrop-filter: blur(10px);
-        }
-
-        h1 {
-            font-size: 48px;
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: #e74c3c;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-style: italic;
-        }
-
-        p.instructions {
-            font-size: 18px;
-            line-height: 1.8;
-            margin-bottom: 30px;
-            color: #ecf0f1;
-            text-align: left;
-        }
-
-        .key-btn {
-            display: inline-block;
-            background: #34495e;
-            padding: 5px 10px;
-            border-radius: 5px;
-            border-bottom: 3px solid #2c3e50;
-            margin: 0 5px;
-            font-weight: bold;
-        }
-
-        button {
-            padding: 15px 50px;
-            font-size: 24px;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            background: linear-gradient(to bottom, #e74c3c, #c0392b);
-            color: white;
-            font-weight: bold;
-            text-transform: uppercase;
-            transition: all 0.2s;
-            box-shadow: 0 6px 0 #922b21;
-        }
-
-        button:hover {
-            transform: translateY(2px);
-            box-shadow: 0 4px 0 #922b21;
-            background: linear-gradient(to bottom, #ff6b5a, #e74c3c);
-        }
-
-        button:active {
-            transform: translateY(6px);
-            box-shadow: 0 0 0 #922b21;
-        }
-
-        /* HUD 스타일 */
-        .hud-container {
-            position: absolute;
-            pointer-events: none;
-            display: none; /* 게임 시작 전 숨김 */
-        }
-
-        #speedometer {
-            bottom: 30px;
-            right: 30px;
-            width: 150px;
-            height: 150px;
-            background: rgba(0,0,0,0.6);
-            border-radius: 50%;
-            border: 5px solid #34495e;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-        }
-
-        #speedValue {
-            font-size: 42px;
-            font-weight: bold;
-            font-style: italic;
-            color: #ecf0f1;
-            line-height: 1;
-        }
-
-        #speedUnit {
-            font-size: 16px;
-            color: #95a5a6;
-            margin-top: -5px;
-        }
-
-        #driftScoreBoard {
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 32px;
-            font-weight: bold;
-            font-style: italic;
-            color: #f1c40f;
-            text-shadow: 0 0 10px #f39c12;
-            opacity: 0;
+        #instructions {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85); padding: 24px; border-radius: 16px;
+            text-align: center; pointer-events: all; border: 2px solid #3b82f6;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
             transition: opacity 0.3s;
+            max-width: 400px; width: 90%;
         }
-
-        #totalScoreBoard {
-            top: 20px;
-            left: 20px;
-            font-size: 24px;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 20px;
-            border-radius: 8px;
-            border-left: 5px solid #e74c3c;
+        .hud-panel {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 15px 25px;
         }
-
-        #timerBoard {
-            top: 20px;
-            right: 20px;
-            font-size: 28px;
-            font-family: monospace;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 20px;
-            border-radius: 8px;
-            color: #ecf0f1;
+        #drift-text {
+            position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+            font-size: 60px; font-weight: 900; color: #f59e0b; font-style: italic;
+            text-shadow: 0px 0px 20px #ef4444, 2px 2px 0px #000;
+            opacity: 0; transition: all 0.1s ease-out;
         }
-
-        /* 모바일 컨트롤 */
-        #mobileControls {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            width: 100%;
-            height: 150px;
-            display: none;
-            pointer-events: none;
+        .show-drift { opacity: 1 !important; transform: translate(-50%, -50%) scale(1.2) !important; }
+        .speed-bar-container {
+            width: 250px; height: 10px; background: rgba(255,255,255,0.2);
+            border-radius: 5px; overflow: hidden; margin-top: 10px;
         }
-
-        .control-area {
-            position: absolute;
-            width: 120px;
-            height: 120px;
-            background: rgba(255,255,255,0.1);
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            pointer-events: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 30px;
-            color: rgba(255,255,255,0.5);
-        }
-
-        .control-area:active {
-            background: rgba(255,255,255,0.3);
-        }
-
-        #leftBtn { left: 20px; bottom: 20px; }
-        #rightBtn { left: 160px; bottom: 20px; }
-        #gasBtn { right: 20px; bottom: 20px; width: 100px; height: 100px; border-radius: 20px; background: rgba(46, 204, 113, 0.3); border-color: #2ecc71;}
-        #gasBtn:active { background: rgba(46, 204, 113, 0.6); }
-        #brakeBtn { right: 140px; bottom: 20px; width: 80px; height: 80px; border-radius: 20px; background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
-        #brakeBtn:active { background: rgba(231, 76, 60, 0.6); }
-
-        @media (max-width: 768px) {
-            #mobileControls { display: block; }
-            .panel { padding: 20px; width: 85%; }
-            h1 { font-size: 32px; }
-            #speedometer { width: 100px; height: 100px; bottom: 150px; right: 10px; }
-            #speedValue { font-size: 28px; }
-        }
-
-        /* 파티클 캔버스 (타이어 자국 및 연기용) */
-        #particleCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
+        #speed-bar {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #ef4444);
+            transition: width 0.1s;
         }
     </style>
-    <!-- Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <div id="hud" class="hud-container" style="width: 100%; height: 100%;">
-        <div id="totalScoreBoard" class="hud-container">점수: <span id="scoreVal">0</span></div>
-        <div id="timerBoard" class="hud-container">00:00</div>
-        <div id="driftScoreBoard" class="hud-container">+<span id="driftVal">0</span> 드리프트!</div>
-       
-        <div id="speedometer" class="hud-container">
-            <div id="speedValue">0</div>
-            <div id="speedUnit">km/h</div>
-        </div>
-       
-        <div id="mobileControls">
-            <div id="leftBtn" class="control-area">◀</div>
-            <div id="rightBtn" class="control-area">▶</div>
-            <div id="brakeBtn" class="control-area">B</div>
-            <div id="gasBtn" class="control-area">GAS</div>
-        </div>
-    </div>
-
-    <div id="uiLayer">
-        <!-- 메인 메뉴 -->
-        <div id="startScreen" class="panel">
-            <h1>Drift King 3D</h1>
-            <p class="instructions">
-                <strong>[조작 방법]</strong><br><br>
-                <span class="key-btn">W</span> 또는 <span class="key-btn">↑</span> : 가속 (엑셀)<br>
-                <span class="key-btn">S</span> 또는 <span class="key-btn">↓</span> : 브레이크 / 후진<br>
-                <span class="key-btn">A</span> <span class="key-btn">D</span> 또는 <span class="key-btn">←</span> <span class="key-btn">→</span> : 핸들 조향<br>
-                <span class="key-btn">Space</span> : <strong>사이드 브레이크 (드리프트)</strong><br><br>
-                코너에서 사이드 브레이크를 걸고 핸들을 꺾어 드리프트 점수를 획득하세요!
-            </p>
-            <button onclick="startGame()">레이스 시작</button>
+    <div id="ui-layer">
+        <div class="absolute top-6 left-6 hud-panel shadow-lg flex flex-col gap-2">
+            <div class="text-gray-300 font-bold text-sm">SCORE</div>
+            <div id="score" class="text-4xl font-black text-blue-400">0</div>
         </div>
 
-        <!-- 게임 오버 화면 -->
-        <div id="gameOverScreen" class="panel" style="display: none;">
-            <h1>TIME OVER</h1>
-            <p class="instructions" style="text-align: center;">
-                최종 점수<br>
-                <strong id="finalScore" style="font-size: 48px; color: #f1c40f;">0</strong>
-            </p>
-            <button onclick="startGame()">다시 달리기</button>
+        <div class="absolute bottom-10 right-10 hud-panel shadow-lg flex flex-col items-end">
+            <div class="flex items-baseline gap-2">
+                <span id="speed-text" class="text-5xl font-black text-white">0</span>
+                <span class="text-gray-400 font-bold text-lg">km/h</span>
+            </div>
+            <div class="speed-bar-container"><div id="speed-bar"></div></div>
+        </div>
+
+        <div id="drift-text">DRIFT!!!</div>
+
+        <div id="instructions">
+            <h1 class="text-3xl font-black mb-2 text-blue-400 italic tracking-tighter">OPEN WORLD DRIFT</h1>
+            <p class="mb-4 text-gray-300 text-sm">광활한 아스팔트 위에서 타이어를 불태우세요!</p>
+           
+            <div class="grid grid-cols-2 gap-2 text-xs text-left bg-white/5 p-4 rounded-lg mb-4 border border-white/10">
+                <div class="flex items-center gap-2">
+                    <kbd class="bg-gray-800 border border-gray-600 px-1.5 py-0.5 rounded text-white font-bold shadow-[0_2px_0_#4b5563]">W</kbd> 가속
+                </div>
+                <div class="flex items-center gap-2">
+                    <kbd class="bg-gray-800 border border-gray-600 px-1.5 py-0.5 rounded text-white font-bold shadow-[0_2px_0_#4b5563]">S</kbd> 브레이크/후진
+                </div>
+                <div class="flex items-center gap-2">
+                    <kbd class="bg-gray-800 border border-gray-600 px-1.5 py-0.5 rounded text-white font-bold shadow-[0_2px_0_#4b5563]">A</kbd> <kbd class="bg-gray-800 border border-gray-600 px-1.5 py-0.5 rounded text-white font-bold shadow-[0_2px_0_#4b5563]">D</kbd> 조향
+                </div>
+                <div class="flex items-center gap-2 text-yellow-400">
+                    <kbd class="bg-yellow-600 border border-yellow-500 px-2 py-0.5 rounded text-white font-bold shadow-[0_2px_0_#854d0e]">SPACE</kbd> 드리프트!
+                </div>
+                <div class="flex items-center gap-2 col-span-2 text-red-400 mt-2 border-t border-white/10 pt-3">
+                    <kbd class="bg-red-600 border border-red-500 px-2 py-0.5 rounded text-white font-bold shadow-[0_2px_0_#7f1d1d]">1</kbd> 자동차 자폭 스위치 (3초 후 리스폰)
+                </div>
+            </div>
+            <button id="start-btn" class="w-full bg-blue-600 py-3 rounded-lg font-black text-base hover:bg-blue-500 transition-all active:scale-95 shadow-[0_0_15px_rgba(59,130,246,0.6)]">엔진 시동 (게임 시작)</button>
         </div>
     </div>
 
-    <script>
-        // --- 전역 변수 설정 ---
-        let scene, camera, renderer;
-        let carGroup, carChassis, frontWheels, rearWheels;
-        let trackMeshes = [];
-        let skidmarks = [];
-        let smokeParticles = [];
+<script>
+    // 전역 변수 설정
+    let scene, camera, renderer, clock;
+    let floor, grid; // 무한 맵을 위한 바닥, 그리드 변수
+    let carGroup, carBody, wheels = [];
+   
+    // 키보드 입력
+    const keys = { w: false, a: false, s: false, d: false, space: false };
+   
+    // 물리 엔진 및 차량 상태
+    let speed = 0;
+    const maxSpeed = 4000; // 🚀 최대 속도를 4000으로 증가!
+    const acceleration = 1600; // 🚀 속도에 맞춰 가속도도 2배 증가
+    const braking = 2000; // 🚀 브레이크 성능도 2배 증가
+    const friction = 20;
+   
+    let angle = 0; // 차량이 바라보는 방향
+    let steeringAngle = 0;
+    let velocity = new THREE.Vector2(0, 0); // 실제 이동하는 벡터 (X, Z)
+   
+    let isDrifting = false;
+    let score = 0;
+    let gameStarted = false;
+    let isExploded = false; // 차량 폭발 상태 변수
+
+    // 🚀 오디오 시스템 변수 추가
+    let audioCtx, engineOsc, engineGain, driftNode, driftGain;
+
+    // 부드러운 스키드 마크(타이어 자국)를 그리기 위한 이전 바퀴 위치
+    let lastRearLeftPos = null;
+    let lastRearRightPos = null;
+
+    // 시각 효과
+    const particles = [];
+    const skidMarks = [];
+    const obstacles = []; // 장애물 무한 재배치를 위한 배열
+   
+    // UI 요소
+    const scoreEl = document.getElementById('score');
+    const speedEl = document.getElementById('speed-text');
+    const speedBar = document.getElementById('speed-bar');
+    const driftText = document.getElementById('drift-text');
+    const startBtn = document.getElementById('start-btn');
+    const instructions = document.getElementById('instructions');
+
+    // 🚀 게임 사운드 초기화 (웹 오디오 API를 이용한 소리 합성)
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // 1. 엔진 소리 (낮은 톱니파)
+        engineOsc = audioCtx.createOscillator();
+        engineOsc.type = 'sawtooth';
+        engineOsc.frequency.setValueAtTime(50, audioCtx.currentTime);
+
+        engineGain = audioCtx.createGain();
+        engineGain.gain.setValueAtTime(0.0, audioCtx.currentTime); // 처음엔 조용히
+
+        const engineFilter = audioCtx.createBiquadFilter();
+        engineFilter.type = 'lowpass';
+        engineFilter.frequency.setValueAtTime(400, audioCtx.currentTime);
+
+        engineOsc.connect(engineFilter);
+        engineFilter.connect(engineGain);
+        engineGain.connect(audioCtx.destination);
+        engineOsc.start();
+
+        // 2. 드리프트 타이어 마찰 소리 (화이트 노이즈)
+        const bufferSize = audioCtx.sampleRate * 2;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = Math.random() * 2 - 1;
+        }
+
+        driftNode = audioCtx.createBufferSource();
+        driftNode.buffer = noiseBuffer;
+        driftNode.loop = true;
+
+        const driftFilter = audioCtx.createBiquadFilter();
+        driftFilter.type = 'bandpass';
+        driftFilter.frequency.value = 1000;
+        driftFilter.Q.value = 1.5;
+
+        driftGain = audioCtx.createGain();
+        driftGain.gain.value = 0; // 평소엔 음소거
+
+        driftNode.connect(driftFilter);
+        driftFilter.connect(driftGain);
+        driftGain.connect(audioCtx.destination);
+        driftNode.start();
+    }
+
+    // 🚀 폭발 소리 (순간적인 노이즈 폭발)
+    function playExplosionSound() {
+        if (!audioCtx) return;
+        const bufferSize = audioCtx.sampleRate * 2;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            // 시간에 따라 소리가 줄어드는 감쇠 효과 적용
+            output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.3));
+        }
+
+        const explosionNode = audioCtx.createBufferSource();
+        explosionNode.buffer = noiseBuffer;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 800;
+
+        const gain = audioCtx.createGain();
+        gain.gain.value = 1.0;
+
+        explosionNode.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        explosionNode.start();
+    }
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // 밝은 하늘색
+        scene.fog = new THREE.FogExp2(0x87CEEB, 0.002); // 아득히 먼 곳 안개 처리
+
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        clock = new THREE.Clock();
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // 조명 (광택을 돋보이게 하기 위해 대비를 높임)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // 기본 밝기 낮춤
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5); // 태양광을 강하게
+        dirLight.position.set(100, 200, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.camera.top = 100;
+        dirLight.shadow.camera.bottom = -100;
+        dirLight.shadow.camera.left = -100;
+        dirLight.shadow.camera.right = 100;
+        dirLight.shadow.camera.near = 0.1;
+        dirLight.shadow.camera.far = 500;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // 거대한 아스팔트 바닥 (카메라 시야를 충분히 덮을 크기)
+        const floorGeo = new THREE.PlaneGeometry(8000, 8000);
+        const floorMat = new THREE.MeshStandardMaterial({
+            color: 0x222222,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // 바닥의 그리드 (크기 8000, 400칸 분할 -> 1칸당 20)
+        grid = new THREE.GridHelper(8000, 400, 0x555555, 0x333333);
+        grid.position.y = 0.05;
+        scene.add(grid);
+
+        // 랜덤 장애물 (고깔콘)
+        createObstacles();
+
+        // 플레이어 차량 생성
+        createCar();
+
+        // 이벤트 리스너
+        window.addEventListener('resize', onWindowResize);
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('keyup', onKeyUp);
        
-        let gameState = 'menu'; // 'menu', 'playing', 'gameover'
-        let totalScore = 0;
-        let timeLeft = 60; // 60초
-        let lastTime = 0;
-        let timerInterval;
+        startBtn.addEventListener('click', () => {
+            initAudio(); // 🚀 버튼을 누르면 오디오 엔진 시작!
+            instructions.style.opacity = '0';
+            setTimeout(() => {
+                instructions.style.display = 'none';
+                gameStarted = true;
+            }, 300);
+        });
 
-        // --- 물리 및 차량 동역학 변수 ---
-        const physics = {
-            position: new THREE.Vector3(0, 0, 0),
-            velocity: new THREE.Vector3(0, 0, 0), // 로컬 공간 속도 (z: 전진/후진, x: 좌우 슬립)
-            worldVelocity: new THREE.Vector3(0, 0, 0), // 월드 공간 속도
-            heading: 0, // 차량이 바라보는 방향 (라디안)
-            angularVelocity: 0, // 회전 속도
+        // 게임 루프 시작
+        animate();
+    }
+
+    function createObstacles() {
+        const coneGeo = new THREE.ConeGeometry(0.5, 1.5, 16);
+        const coneMat = new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.4 });
+       
+        // 초기 스폰은 넓게 (800개의 고깔콘)
+        for (let i = 0; i < 800; i++) {
+            const x = (Math.random() - 0.5) * 4000;
+            const z = (Math.random() - 0.5) * 4000;
            
-            // 입력
-            steerAngle: 0,
-            throttle: 0,
-            brake: 0,
-            ebrake: false,
+            if (Math.abs(x) < 20 && Math.abs(z) < 20) continue; // 시작 지점 비우기
 
-            // 스펙 설정
-            mass: 1200,
-            inertia: 1500,
-            wheelBase: 2.8, // 앞뒤 바퀴 축 간격
-            cgToFront: 1.4, // 무게중심에서 앞바퀴까지
-            cgToRear: 1.4,  // 무게중심에서 뒷바퀴까지
-           
-            // 타이어 그립 관련 (중요!)
-            gripFront: 2.0,
-            gripRear: 2.0,
-            // 사이드 브레이크 시 뒷바퀴 그립 상실 비율
-            ebrakeFrictionMultiplier: 0.2,
-           
-            // 엔진 및 저항
-            engineForce: 8000,
-            brakeForce: 12000,
-            drag: 5.0, // 공기 저항
-            rollingResist: 30.0, // 구름 저항
-           
-            maxSteer: 0.6 // 최대 조향각 (라디안)
-        };
-
-        // 입력 상태
-        const keys = { w: false, a: false, s: false, d: false, space: false };
-
-        // 드리프트 점수 관련
-        let isDrifting = false;
-        let currentDriftScore = 0;
-        let driftMultiplier = 1;
-
-        // DOM 요소
-        const uiElements = {
-            start: document.getElementById('startScreen'),
-            over: document.getElementById('gameOverScreen'),
-            huds: document.querySelectorAll('.hud-container'),
-            speed: document.getElementById('speedValue'),
-            score: document.getElementById('scoreVal'),
-            timer: document.getElementById('timerBoard'),
-            driftVal: document.getElementById('driftVal'),
-            driftBoard: document.getElementById('driftScoreBoard'),
-            finalScore: document.getElementById('finalScore')
-        };
-
-        // --- 초기화 함수 ---
-        function init() {
-            // 1. 씬 구성
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a1a2e); // 어두운 밤하늘 색
-            scene.fog = new THREE.Fog(0x1a1a2e, 20, 150);
-
-            // 2. 카메라
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-           
-            // 3. 렌더러
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            document.body.insertBefore(renderer.domElement, document.body.firstChild);
-
-            // 4. 조명
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-            scene.add(ambientLight);
-
-            // 주 조명 (달빛/가로등 느낌)
-            const dirLight = new THREE.DirectionalLight(0x74b9ff, 0.8);
-            dirLight.position.set(50, 100, 50);
-            dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 2048;
-            dirLight.shadow.mapSize.height = 2048;
-            dirLight.shadow.camera.near = 10;
-            dirLight.shadow.camera.far = 200;
-            const d = 50;
-            dirLight.shadow.camera.left = -d;
-            dirLight.shadow.camera.right = d;
-            dirLight.shadow.camera.top = d;
-            dirLight.shadow.camera.bottom = -d;
-            scene.add(dirLight);
-
-            // 차량 헤드라이트를 위한 빈 그룹 미리 생성
-            const headlights = new THREE.Group();
-            scene.add(headlights);
-
-            // 5. 트랙 생성
-            createTrack();
-
-            // 6. 자동차 생성
-            createCar();
-
-            // 7. 컨트롤 설정
-            setupControls();
-            window.addEventListener('resize', onWindowResize);
-
-            // 애니메이션 시작
-            lastTime = performance.now();
-            requestAnimationFrame(animate);
+            const cone = new THREE.Mesh(coneGeo, coneMat);
+            cone.position.set(x, 0.75, z);
+            cone.castShadow = true;
+            scene.add(cone);
+            obstacles.push(cone); // 배열에 저장해두기
         }
+    }
 
-        // --- 트랙 (서킷) 생성 ---
-        function createTrack() {
-            // 거대한 바닥 (아스팔트 바깥쪽 흙/잔디)
-            const groundGeo = new THREE.PlaneGeometry(500, 500);
-            const groundMat = new THREE.MeshStandardMaterial({
-                color: 0x2d3436,
-                roughness: 0.9,
-                metalness: 0.1
-            });
-            const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2;
-            ground.position.y = -0.1; // 트랙보다 약간 아래
-            ground.receiveShadow = true;
-            scene.add(ground);
+    function createCar() {
+        carGroup = new THREE.Group();
+       
+        // 차체 생성 (자동차 광택 효과 극대화!)
+        const bodyGeo = new THREE.BoxGeometry(2, 0.6, 4.5);
+        const bodyMat = new THREE.MeshPhysicalMaterial({
+            color: 0x1d4ed8,          // 반사가 잘 보이도록 약간 진한 스포츠카 블루
+            metalness: 1.0,           // 완전한 메탈 느낌
+            roughness: 0.05,          // 표면을 아주 매끄럽게 (거칠기 최소화)
+            clearcoat: 1.0,           // 투명한 유리 코팅 최대로 적용
+            clearcoatRoughness: 0.02, // 코팅 표면을 거울처럼 매끄럽게
+            reflectivity: 1.0         // 빛 반사율 최대
+        });
+        carBody = new THREE.Mesh(bodyGeo, bodyMat);
+        carBody.position.y = 0.6;
+        carBody.castShadow = true;
+        carGroup.add(carBody);
 
-            // 심플한 8자 형태의 트랙 좌표 정의 (Curve)
-            const curve = new THREE.CatmullRomCurve3([
-                new THREE.Vector3( 0, 0,  50),
-                new THREE.Vector3( 40, 0,  40),
-                new THREE.Vector3( 50, 0,   0),
-                new THREE.Vector3( 30, 0, -40),
-                new THREE.Vector3(  0, 0, -10), // 교차점 부근
-                new THREE.Vector3(-30, 0,  40),
-                new THREE.Vector3(-50, 0,   0),
-                new THREE.Vector3(-40, 0, -40),
-                new THREE.Vector3(  0, 0, -50),
-                new THREE.Vector3( 40, 0, -40)
-            ]);
-            curve.closed = true;
+        // 🚀 자동차 표면의 하이라이트(광택 맺힘)를 만들기 위한 전용 조명 추가
+        const glossyLight = new THREE.PointLight(0xffffff, 1.5, 15);
+        glossyLight.position.set(2, 3, 3);
+        carGroup.add(glossyLight);
 
-            // TubeGeometry를 활용해 트랙 생성 (두께를 0으로 압축하여 평면 도로 생성)
-            const trackWidth = 12;
-            const tubeGeo = new THREE.TubeGeometry(curve, 100, trackWidth, 2, true);
+        // 자동차 지붕(유리창)
+        const roofGeo = new THREE.BoxGeometry(1.8, 0.5, 2.5);
+        const roofMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.9 });
+        const roof = new THREE.Mesh(roofGeo, roofMat);
+        roof.position.set(0, 1.15, -0.2);
+        roof.castShadow = true;
+        carGroup.add(roof);
+
+        // 헤드라이트 (앞)
+        const lightGeo = new THREE.BoxGeometry(0.4, 0.2, 0.1);
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const lightL = new THREE.Mesh(lightGeo, lightMat);
+        lightL.position.set(0.7, 0.6, -2.26);
+        const lightR = new THREE.Mesh(lightGeo, lightMat);
+        lightR.position.set(-0.7, 0.6, -2.26);
+        carGroup.add(lightL, lightR);
+
+        // 테일램프 (뒤)
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const tailL = new THREE.Mesh(lightGeo, tailMat);
+        tailL.position.set(0.7, 0.6, 2.26);
+        const tailR = new THREE.Mesh(lightGeo, tailMat);
+        tailR.position.set(-0.7, 0.6, 2.26);
+        carGroup.add(tailL, tailR);
+
+        // 스포일러 (스포츠카 느낌)
+        const spoilerGeo = new THREE.BoxGeometry(2.2, 0.1, 0.5);
+        const spoiler = new THREE.Mesh(spoilerGeo, bodyMat);
+        spoiler.position.set(0, 1.0, 2.0);
+       
+        const spLeg1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.2), new THREE.MeshStandardMaterial({color:0x111111}));
+        spLeg1.position.set(0.6, 0.85, 2.0);
+        const spLeg2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.2), new THREE.MeshStandardMaterial({color:0x111111}));
+        spLeg2.position.set(-0.6, 0.85, 2.0);
+       
+        carGroup.add(spoiler, spLeg1, spLeg2);
+
+        // 바퀴 생성 함수
+        const createWheel = (x, z) => {
+            const wheelGroup = new THREE.Group();
+            wheelGroup.position.set(x, 0.35, z);
            
-            // TubeGeometry의 꼭짓점들을 평탄화 (y를 0으로)
-            const positions = tubeGeo.attributes.position;
-            for(let i=0; i<positions.count; i++) {
-                positions.setY(i, 0);
-            }
-            tubeGeo.computeVertexNormals(); // 법선 재계산
-
-            // 아스팔트 재질
-            const trackMat = new THREE.MeshStandardMaterial({
-                color: 0x111111,
-                roughness: 0.7,
-                metalness: 0.2
-            });
-
-            const trackMesh = new THREE.Mesh(tubeGeo, trackMat);
-            trackMesh.receiveShadow = true;
-            scene.add(trackMesh);
-           
-            // 시각적 요소: 가로등 추가 (트랙 외곽을 따라)
-            const points = curve.getPoints(30);
-            const lampGeo = new THREE.CylinderGeometry(0.2, 0.2, 5);
-            const lampMat = new THREE.MeshStandardMaterial({color: 0x333333});
-            const lightBoxGeo = new THREE.BoxGeometry(1, 0.5, 1);
-            const lightBoxMat = new THREE.MeshBasicMaterial({color: 0xffffff});
-
-            points.forEach((pt, index) => {
-                if(index % 2 === 0) { // 간격 띄워서 배치
-                    const lampGroup = new THREE.Group();
-                   
-                    const pole = new THREE.Mesh(lampGeo, lampMat);
-                    pole.position.y = 2.5;
-                    lampGroup.add(pole);
-
-                    const lightBox = new THREE.Mesh(lightBoxGeo, lightBoxMat);
-                    lightBox.position.set(0, 5, 0.5);
-                    lampGroup.add(lightBox);
-
-                    // PointLight로 주변 밝히기
-                    const pl = new THREE.PointLight(0xffddaa, 0.5, 20);
-                    pl.position.set(0, 5, 1);
-                    lampGroup.add(pl);
-
-                    // 트랙 바깥쪽으로 밀어내기 위해 노멀 계산
-                    const tangent = curve.getTangent(index/30);
-                    const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize(); // y축 회전
-                   
-                    // 지그재그로 배치 (좌/우)
-                    const side = index % 4 === 0 ? 1 : -1;
-                   
-                    lampGroup.position.copy(pt).add(normal.multiplyScalar((trackWidth + 2) * side));
-                    lampGroup.lookAt(pt); // 트랙 중앙을 바라보게
-                   
-                    scene.add(lampGroup);
-                }
-            });
-        }
-
-        // --- 자동차 (플레이어) 생성 ---
-        function createCar() {
-            carGroup = new THREE.Group();
-           
-            // 1. 차체 (Chassis) - 스포티한 느낌
-            carChassis = new THREE.Group();
-           
-            // 메인 바디
-            const bodyGeo = new THREE.BoxGeometry(2, 0.5, 4.5);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.3, metalness: 0.6 }); // 빨간색 스포츠카
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.y = 0.4;
-            body.castShadow = true;
-            carChassis.add(body);
-
-            // 캐빈 (탑승 공간)
-            const cabinGeo = new THREE.BoxGeometry(1.6, 0.5, 2.2);
-            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 }); // 검은 유리창
-            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-            cabin.position.set(0, 0.9, -0.3);
-            cabin.castShadow = true;
-            carChassis.add(cabin);
-
-            // 스포일러 (윙)
-            const wingGeo = new THREE.BoxGeometry(2.2, 0.1, 0.5);
-            const wingMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-            const wing = new THREE.Mesh(wingGeo, wingMat);
-            wing.position.set(0, 1.0, -2.0);
-            carChassis.add(wing);
-
-            // 윙 지지대
-            const strutGeo = new THREE.BoxGeometry(0.1, 0.3, 0.2);
-            const strut1 = new THREE.Mesh(strutGeo, wingMat);
-            strut1.position.set(-0.6, 0.8, -2.0);
-            carChassis.add(strut1);
-            const strut2 = new THREE.Mesh(strutGeo, wingMat);
-            strut2.position.set(0.6, 0.8, -2.0);
-            carChassis.add(strut2);
-           
-            // 헤드라이트 조명
-            const createHeadlight = (x, z) => {
-                const lightGeo = new THREE.PlaneGeometry(0.4, 0.2);
-                const lightMat = new THREE.MeshBasicMaterial({color: 0xffffff});
-                const l = new THREE.Mesh(lightGeo, lightMat);
-                l.position.set(x, 0.5, z);
-                // l.rotation.y = Math.PI;
-                carChassis.add(l);
-               
-                // 실제 스포트라이트
-                const spotLight = new THREE.SpotLight(0xffffff, 2, 40, Math.PI/6, 0.5, 1);
-                spotLight.position.set(x, 0.5, z);
-                spotLight.target.position.set(x, 0.5, z + 5);
-                carChassis.add(spotLight);
-                carChassis.add(spotLight.target);
-            };
-            createHeadlight(-0.7, 2.26);
-            createHeadlight(0.7, 2.26);
-
-            // 후미등 (Brake lights)
-            const tailGeo = new THREE.PlaneGeometry(0.5, 0.15);
-            const tailMat = new THREE.MeshBasicMaterial({color: 0x550000}); // 기본 어두운 빨강
-            const tailL = new THREE.Mesh(tailGeo, tailMat);
-            tailL.position.set(-0.6, 0.5, -2.26);
-            tailL.rotation.y = Math.PI;
-            tailL.name = "tailL";
-            carChassis.add(tailL);
-           
-            const tailR = new THREE.Mesh(tailGeo, tailMat);
-            tailR.position.set(0.6, 0.5, -2.26);
-            tailR.rotation.y = Math.PI;
-            tailR.name = "tailR";
-            carChassis.add(tailR);
-
-            carGroup.add(carChassis);
-
-            // 2. 바퀴 (Wheels)
             const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 16);
-            // 실린더는 기본적으로 Y축으로 서있으므로 회전 필요
             wheelGeo.rotateZ(Math.PI / 2);
-            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+            wheel.castShadow = true;
            
-            // 휠 테두리 (합금 느낌)
-            const rimGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.32, 8);
-            rimGeo.rotateZ(Math.PI / 2);
-            const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
-
-            frontWheels = new THREE.Group();
-            rearWheels = new THREE.Group();
-
-            const createWheelMesh = () => {
-                const w = new THREE.Group();
-                const tire = new THREE.Mesh(wheelGeo, wheelMat);
-                tire.castShadow = true;
-                w.add(tire);
-                w.add(new THREE.Mesh(rimGeo, rimMat));
-                return w;
-            };
-
-            // 앞바퀴 2개 (조향 가능하게 그룹화)
-            const fl = createWheelMesh(); fl.position.set(-1.1, 0.35, 0);
-            const fr = createWheelMesh(); fr.position.set(1.1, 0.35, 0);
-            frontWheels.add(fl); frontWheels.add(fr);
-            frontWheels.position.z = physics.cgToFront; // 모델상 z+ 가 앞쪽
+            // 휠 허브 디테일
+            const hubGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.32, 8);
+            hubGeo.rotateZ(Math.PI / 2);
+            const hubMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 });
+            const hub = new THREE.Mesh(hubGeo, hubMat);
            
-            // 뒷바퀴 2개
-            const rl = createWheelMesh(); rl.position.set(-1.1, 0.35, 0);
-            const rr = createWheelMesh(); rr.position.set(1.1, 0.35, 0);
-            rearWheels.add(rl); rearWheels.add(rr);
-            rearWheels.position.z = -physics.cgToRear;
+            wheelGroup.add(wheel, hub);
+            carGroup.add(wheelGroup);
+            wheels.push(wheelGroup);
+            return wheelGroup;
+        };
 
-            carGroup.add(frontWheels);
-            carGroup.add(rearWheels);
+        // 앞바퀴 2개, 뒷바퀴 2개
+        createWheel(1.1, -1.4); // 앞 왼쪽
+        createWheel(-1.1, -1.4); // 앞 오른쪽
+        createWheel(1.1, 1.4); // 뒤 왼쪽
+        createWheel(-1.1, 1.4); // 뒤 오른쪽
 
-            scene.add(carGroup);
+        scene.add(carGroup);
+    }
+
+    function onKeyDown(e) {
+        if(e.code === 'KeyW') keys.w = true;
+        if(e.code === 'KeyA') keys.a = true;
+        if(e.code === 'KeyS') keys.s = true;
+        if(e.code === 'KeyD') keys.d = true;
+        if(e.code === 'Space') keys.space = true;
+        if(e.code === 'Digit1') explodeCar(); // 숫자 1번 키를 누르면 폭발!
+    }
+
+    function onKeyUp(e) {
+        if(e.code === 'KeyW') keys.w = false;
+        if(e.code === 'KeyA') keys.a = false;
+        if(e.code === 'KeyS') keys.s = false;
+        if(e.code === 'KeyD') keys.d = false;
+        if(e.code === 'Space') keys.space = false;
+    }
+
+    // 자동차 폭발 이펙트 함수
+    function explodeCar() {
+        if (isExploded) return;
+        isExploded = true;
+        carGroup.visible = false; // 차체 숨기기
+        speed = 0; // 즉시 정지
+        velocity.set(0, 0); // 이동 관성 초기화
+       
+        playExplosionSound(); // 🚀 폭발 소리 재생!
+
+        // 사방으로 튀어나가는 150개의 파편 조각 생성
+        for (let i = 0; i < 150; i++) {
+            const colors = [0xff0000, 0xff8800, 0xffff00, 0x333333]; // 불꽃과 파편 색상
+            const mat = new THREE.MeshBasicMaterial({ color: colors[Math.floor(Math.random() * colors.length)] });
+            const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            const p = new THREE.Mesh(geo, mat);
            
-            // 초기 위치 (트랙 위)
-            physics.position.set(0, 0, 50);
-            physics.heading = Math.PI; // -z 방향을 보게 설정
+            p.position.copy(carGroup.position);
+            p.position.y += 1;
+           
+            // 폭발력 계산 (X, Y, Z로 흩어짐)
+            const vel = new THREE.Vector3(
+                (Math.random() - 0.5) * 80,
+                Math.random() * 60 + 10,
+                (Math.random() - 0.5) * 80
+            );
+           
+            scene.add(p);
+            particles.push({ mesh: p, vel: vel, life: 3.0, isExplosion: true });
         }
+       
+        // UI 변경
+        driftText.innerText = "BOOM!!!";
+        driftText.style.color = "#ef4444";
+        driftText.classList.add('show-drift');
 
-        // --- 입력 설정 ---
-        function setupControls() {
-            // 키보드
-            document.addEventListener('keydown', (e) => {
-                const key = e.key.toLowerCase();
-                if(key === 'w' || key === 'arrowup') keys.w = true;
-                if(key === 's' || key === 'arrowdown') keys.s = true;
-                if(key === 'a' || key === 'arrowleft') keys.a = true;
-                if(key === 'd' || key === 'arrowright') keys.d = true;
-                if(key === ' ') keys.space = true;
-            });
+        // 3초 후 리스폰
+        setTimeout(respawnCar, 3000);
+    }
 
-            document.addEventListener('keyup', (e) => {
-                const key = e.key.toLowerCase();
-                if(key === 'w' || key === 'arrowup') keys.w = false;
-                if(key === 's' || key === 'arrowdown') keys.s = false;
-                if(key === 'a' || key === 'arrowleft') keys.a = false;
-                if(key === 'd' || key === 'arrowright') keys.d = false;
-                if(key === ' ') keys.space = false;
-            });
+    // 🚀 리스폰 함수 (초기 위치, 점수, 장애물 완벽 복구)
+    function respawnCar() {
+        isExploded = false;
+       
+        // 위치, 회전, 속도 초기화 (0, 0, 0)
+        carGroup.position.set(0, 0, 0);
+        angle = 0;
+        carGroup.rotation.y = angle;
+        speed = 0;
+        velocity.set(0, 0);
+        steeringAngle = 0;
+        wheels[0].rotation.y = 0;
+        wheels[1].rotation.y = 0;
+       
+        carGroup.visible = true; // 차체 다시 표시
 
-            // 모바일 터치
-            const bindTouch = (id, keyName) => {
-                const el = document.getElementById(id);
-                el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
-                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
-            };
+        // 🚀 폭발 시 점수 0으로 완전 초기화
+        score = 0;
+        scoreEl.innerText = score;
 
-            bindTouch('leftBtn', 'a');
-            bindTouch('rightBtn', 'd');
-            bindTouch('gasBtn', 'w');
-            bindTouch('brakeBtn', 'space'); // 모바일에서 브레이크 버튼을 사이드브레이크(스페이스)로 매핑
-        }
+        // 드리프트 상태 초기화
+        isDrifting = false;
+        lastRearLeftPos = null;
+        lastRearRightPos = null;
 
-        // --- 게임 진행 관련 ---
-        function startGame() {
-            // 초기화
-            physics.position.set(0, 0, 50);
-            physics.velocity.set(0, 0, 0);
-            physics.worldVelocity.set(0, 0, 0);
-            physics.heading = Math.PI;
-            physics.angularVelocity = 0;
+        // 🚀 스폰 지점 주변으로 고깔콘(장애물) 정상 재배치
+        for (let i = 0; i < obstacles.length; i++) {
+            const cone = obstacles[i];
+            const x = (Math.random() - 0.5) * 4000;
+            const z = (Math.random() - 0.5) * 4000;
            
-            totalScore = 0;
-            timeLeft = 60;
-            isDrifting = false;
-            currentDriftScore = 0;
-           
-            uiElements.score.innerText = '0';
-            updateTimerDisplay();
-
-            // UI 전환
-            uiElements.start.style.display = 'none';
-            uiElements.over.style.display = 'none';
-            uiElements.huds.forEach(el => el.style.display = 'block'); // 클래스로 묶인 HUD 모두 표시
-            uiElements.driftBoard.style.opacity = '0';
-           
-            // 기존 스키드마크/연기 제거
-            skidmarks.forEach(m => scene.remove(m));
-            skidmarks = [];
-
-            gameState = 'playing';
-           
-            // 타이머 시작
-            clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                if(gameState === 'playing') {
-                    timeLeft--;
-                    updateTimerDisplay();
-                    if(timeLeft <= 0) {
-                        gameOver();
-                    }
-                }
-            }, 1000);
-        }
-
-        function updateTimerDisplay() {
-            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-            const s = (timeLeft % 60).toString().padStart(2, '0');
-            uiElements.timer.innerText = `${m}:${s}`;
-            if(timeLeft <= 10) {
-                uiElements.timer.style.color = '#e74c3c';
+            // 스폰 지점(가운데)이 막히지 않도록 안전거리 확보
+            if (Math.abs(x) < 20 && Math.abs(z) < 20) {
+                cone.position.set(x + 50, 0.75, z + 50);
             } else {
-                uiElements.timer.style.color = '#ecf0f1';
+                cone.position.set(x, 0.75, z);
             }
         }
 
-        function gameOver() {
-            gameState = 'gameover';
-            clearInterval(timerInterval);
-           
-            // 진행중이던 드리프트 점수 정산
-            if(isDrifting && currentDriftScore > 0) {
-                totalScore += Math.floor(currentDriftScore);
-                uiElements.score.innerText = totalScore;
-            }
-           
-            uiElements.huds.forEach(el => {
-                if(el.id !== 'totalScoreBoard') el.style.display = 'none';
-            });
-            uiElements.driftBoard.style.opacity = '0';
-           
-            uiElements.finalScore.innerText = totalScore;
-            uiElements.over.style.display = 'block';
+        // 🚀 카메라 위치 즉시 복구 (화면을 위로 45도 올린 높이)
+        const idealOffset = new THREE.Vector3(0, 12, 12);
+        idealOffset.applyQuaternion(carGroup.quaternion);
+        idealOffset.add(carGroup.position);
+        camera.position.copy(idealOffset);
+        camera.lookAt(carGroup.position);
+        camera.fov = 60; // 🚀 리스폰 시 시야각 초기화
+        camera.updateProjectionMatrix();
+
+        // UI 텍스트 복구
+        driftText.classList.remove('show-drift');
+        setTimeout(() => {
+            driftText.innerText = "DRIFT!!!";
+            driftText.style.color = "#f59e0b";
+        }, 300);
+    }
+
+    // 드리프트 시 타이어 연기 생성
+    function createSmoke(pos) {
+        const size = Math.random() * 1.5 + 0.5;
+        const smokeGeo = new THREE.PlaneGeometry(size, size);
+        const smokeMat = new THREE.MeshBasicMaterial({
+            color: 0xdddddd,
+            transparent: true,
+            opacity: 0.6,
+            depthWrite: false
+        });
+        const smoke = new THREE.Mesh(smokeGeo, smokeMat);
+       
+        // 연기가 바닥에서 피어오르도록 카메라를 바라보게 설정
+        smoke.position.copy(pos);
+        smoke.position.y = 0.2; // 살짝 위
+        smoke.position.x += (Math.random() - 0.5) * 0.5;
+        smoke.position.z += (Math.random() - 0.5) * 0.5;
+       
+        // 연기가 퍼지는 속도
+        const vel = new THREE.Vector3(
+            (Math.random() - 0.5) * 2,
+            Math.random() * 2 + 1,
+            (Math.random() - 0.5) * 2
+        );
+       
+        scene.add(smoke);
+        particles.push({ mesh: smoke, vel: vel, life: 1.0 });
+    }
+
+    // 드리프트 타이어 자국(스키드 마크) 생성 (점과 점을 이어 부드럽게)
+    function createSkidMark(p1, p2) {
+        const distance = p1.distanceTo(p2);
+        if (distance < 0.05) return; // 겹침 방지 (너무 짧으면 무시)
+
+        // 두 지점의 정확한 가운데 위치
+        const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+        // 이동한 방향의 각도 계산
+        const angle = Math.atan2(p2.x - p1.x, p2.z - p1.z);
+
+        // 이동한 거리(distance)만큼 길이를 늘려서 선을 만듦
+        const geo = new THREE.PlaneGeometry(0.35, distance);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.4 });
+        const skid = new THREE.Mesh(geo, mat);
+       
+        skid.position.copy(midPoint);
+        skid.position.y = 0.02; // 바닥보다 아주 살짝 위 (z-fighting 방지)
+        skid.rotation.x = -Math.PI / 2;
+        skid.rotation.z = -angle; // 선이 이어지는 방향으로 회전
+       
+        scene.add(skid);
+        skidMarks.push({ mesh: skid, life: 5.0 }); // 5초 후 사라짐
+    }
+
+    function updatePhysics(delta) {
+        if (isExploded) return; // 차가 폭발했다면 물리엔진 작동 중지
+
+        // --- 가속 및 브레이크 ---
+        if (keys.w) {
+            speed += acceleration * delta;
+        } else if (keys.s) {
+            speed -= braking * delta;
+        } else {
+            // 자연 마찰력 (감속)
+            if (speed > 0) speed = Math.max(0, speed - friction * delta);
+            if (speed < 0) speed = Math.min(0, speed + friction * delta);
         }
 
-        // --- 자동차 물리 모델 업데이트 (Arcade-Sim Hybrid) ---
-        function updatePhysics(dt) {
-            // 1. 입력 처리
-            let steerInput = 0;
-            if (keys.a) steerInput += 1;
-            if (keys.d) steerInput -= 1;
-           
-            // 조향 부드럽게 적용 (스무딩)
-            const targetSteer = steerInput * physics.maxSteer;
-            physics.steerAngle += (targetSteer - physics.steerAngle) * 10 * dt;
+        // 최고 속도 제한
+        speed = Math.max(-maxSpeed / 2, Math.min(maxSpeed, speed));
 
-            physics.throttle = keys.w ? 1 : 0;
-            physics.brake = keys.s ? 1 : 0;
-            physics.ebrake = keys.space;
+        // --- 조향 (Steering) ---
+        // 핸들 꺾이는 속도를 대폭 낮춰서 부드럽게 (0.8)
+        let turnSpeed = 0.8;
+        if (Math.abs(speed) > 0.1) {
+            if (keys.a) steeringAngle += turnSpeed * delta;
+            if (keys.d) steeringAngle -= turnSpeed * delta;
+        }
+       
+        // 키를 놓으면 핸들이 중앙으로 복귀하는 속도도 부드럽게 조절 (0.9)
+        if (!keys.a && !keys.d) {
+            steeringAngle *= 0.9;
+        }
+       
+        // 바퀴가 최대로 꺾이는 각도 살짝 제한 (0.5)
+        steeringAngle = Math.max(-0.5, Math.min(0.5, steeringAngle));
+       
+        // 앞바퀴 시각적 회전 처리
+        wheels[0].rotation.y = steeringAngle;
+        wheels[1].rotation.y = steeringAngle;
 
-            // 브레이크 등 시각 효과
-            const isBraking = physics.brake > 0 || physics.ebrake;
-            const tailColor = isBraking ? 0xff0000 : 0x550000;
-            carChassis.getObjectByName("tailL").material.color.setHex(tailColor);
-            carChassis.getObjectByName("tailR").material.color.setHex(tailColor);
+        // 스페이스바를 누르고, 속도가 어느정도 있고, 방향을 틀고 있을 때 드리프트 발동!
+        isDrifting = keys.space && Math.abs(speed) > 3 && Math.abs(steeringAngle) > 0.1;
 
-            // 2. 차량 로컬 좌표계 (단위 벡터)
-            const sn = Math.sin(physics.heading);
-            const cs = Math.cos(physics.heading);
+        // 회전량 계산 및 180도 스핀 부드럽게 방지
+        const directionMultiplier = speed > 0 ? 1 : (speed < 0 ? -1 : 0);
+        let turnAmount = steeringAngle * (Math.abs(speed) / maxSpeed) * directionMultiplier;
+
+        if (isDrifting) {
+            // 드리프트 시 차체가 확 돌아가는 속도를 부드럽게 감소 (0.8)
+            const driftTurnMultiplier = speed > 0 ? 0.8 : 0;
+            turnAmount += steeringAngle * driftTurnMultiplier * delta;
+        }
+
+        // 현재 차량이 실제로 이동하는 방향
+        let velAngle = Math.atan2(velocity.x, velocity.y);
+        if (velocity.lengthSq() < 1) velAngle = angle; // 저속일 때 각도 튀는 현상 방지
+       
+        // 차가 바라보는 방향(angle)과 실제 이동 방향(velAngle)의 차이 계산
+        let slip = angle - velAngle;
+        while (slip > Math.PI) slip -= Math.PI * 2;
+        while (slip < -Math.PI) slip += Math.PI * 2;
+
+        if (isDrifting) {
+            // slipRatio: 미끄러지는 각도가 180도(Math.PI)에 가까워질수록 1에 수렴
+            let slipRatio = Math.abs(slip) / Math.PI;
+            // limitFactor: 180도가 되면 0이 되어 회전이 부드럽게 멈춤 (제곱을 사용하여 쫀득하게 잡힘)
+            let limitFactor = Math.max(0, 1.0 - Math.pow(slipRatio, 2));
            
-            // 현재 월드 속도를 차량 로컬 속도(z:앞뒤, x:좌우)로 변환
-            physics.velocity.z = cs * physics.worldVelocity.z + sn * physics.worldVelocity.x; // 전진 방향 속도
-            physics.velocity.x = cs * physics.worldVelocity.x - sn * physics.worldVelocity.z; // 측면(슬립) 방향 속도
-           
-            // 3. 힘 계산 (로컬 공간)
-            let tractionForce = 0;
-           
-            // 가속 (엔진 힘)
-            if (physics.throttle > 0) {
-                tractionForce = physics.engineForce * physics.throttle;
-            } else if (physics.brake > 0) {
-                // 후진 또는 브레이크
-                if(physics.velocity.z > 0.5) {
-                    tractionForce = -physics.brakeForce; // 브레이킹
-                } else {
-                    tractionForce = -physics.engineForce * 0.5; // 후진 기어
-                }
+            // 이미 꺾인 방향으로 더 심하게 꺾어 스핀하려 할 때만 회전력을 제한 (카운터 스티어링은 자유롭게 허용)
+            if (Math.sign(turnAmount) === Math.sign(slip)) {
+                turnAmount *= limitFactor;
             }
+        }
+
+        // 최종적으로 차량 각도 업데이트
+        angle += turnAmount;
+
+        // --- 드리프트 코어 물리 (관성 유지) ---
+        const forwardVector = new THREE.Vector2(Math.sin(angle), Math.cos(angle));
+        const grip = isDrifting ? 1.5 : 10.0;
+        const targetVelocity = forwardVector.clone().multiplyScalar(speed);
+       
+        // 현재 이동 벡터에서 목표 벡터로 부드럽게 보간 (Lerp) -> 미끄러지는 효과
+        velocity.lerp(targetVelocity, delta * grip);
+
+        // 차량 위치 업데이트 (실제 방향은 -Z가 앞이므로 좌표계 변환)
+        carGroup.position.x += velocity.x * delta * -1;
+        carGroup.position.z += velocity.y * delta * -1;
+        carGroup.rotation.y = angle;
+
+        // 바퀴 굴러가는 애니메이션
+        const wheelSpin = speed * delta * 0.5;
+        wheels.forEach(w => w.children[0].rotation.x += wheelSpin);
+
+        // 🚀 오디오 업데이트 (엔진음 및 드리프트음)
+        if (audioCtx && engineOsc) {
+            // 속도에 따라 엔진 주파수(음높이)가 올라감
+            const targetFreq = 50 + (Math.abs(speed) / maxSpeed) * 200;
+            engineOsc.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
+
+            // 가속(W) 중이거나 속도가 빠를수록 엔진 소리가 커짐
+            let targetEngineGain = 0.05 + (Math.abs(speed) / maxSpeed) * 0.15;
+            if (keys.w) targetEngineGain += 0.1;
+            engineGain.gain.setTargetAtTime(targetEngineGain, audioCtx.currentTime, 0.1);
+        }
+
+        // --- 드리프트 효과 및 점수 계산 ---
+        if (isDrifting) {
+            driftText.classList.add('show-drift');
+            score += Math.floor(Math.abs(speed) * 0.5);
+            scoreEl.innerText = score.toLocaleString();
            
-            // 저항 (공기 저항 + 구름 저항)
-            const speed = physics.velocity.z;
-            const dragForce = -physics.drag * speed * Math.abs(speed);
-            const rollForce = -physics.rollingResist * speed;
-           
-            const totalLongForce = tractionForce + dragForce + rollForce;
-           
-            // 4. 측면 힘 (코너링 및 드리프트)
-            // 슬립 앵글 (차가 바라보는 방향과 실제 이동 방향의 차이)
-            let slipAngleFront = 0;
-            let slipAngleRear = 0;
-           
-            if (Math.abs(speed) > 0.1) {
-                // 앞바퀴 슬립각: (측면속도 + 앞바퀴까지의거리 * 회전속도) / 전진속도 - 조향각
-                slipAngleFront = Math.atan2(physics.velocity.x + physics.cgToFront * physics.angularVelocity, Math.abs(speed)) - Math.sign(speed) * physics.steerAngle;
-                // 뒷바퀴 슬립각: (측면속도 - 뒷바퀴까지의거리 * 회전속도) / 전진속도
-                slipAngleRear  = Math.atan2(physics.velocity.x - physics.cgToRear * physics.angularVelocity,  Math.abs(speed));
+            // 🚀 드리프트 중일 때 타이어 마찰 소리 볼륨 올리기
+            if (driftGain) {
+                driftGain.gain.setTargetAtTime(0.3 + (Math.abs(speed) / maxSpeed) * 0.5, audioCtx.currentTime, 0.05);
             }
 
-            // 타이어 측면 그립력 (간소화된 Pacejka Magic Formula 형태)
-            // 사이드 브레이크 당기면 뒷바퀴 그립을 대폭 감소시켜 꼬리가 미끄러지게(오버스티어) 만듦
-            let rearGripMultiplier = physics.ebrake ? physics.ebrakeFrictionMultiplier : 1.0;
+            const rearLeftPos = new THREE.Vector3(1.1, 0, 1.4).applyMatrix4(carGroup.matrixWorld);
+            const rearRightPos = new THREE.Vector3(-1.1, 0, 1.4).applyMatrix4(carGroup.matrixWorld);
+
+            if (lastRearLeftPos && lastRearRightPos) {
+                createSkidMark(lastRearLeftPos, rearLeftPos);
+                createSkidMark(lastRearRightPos, rearRightPos);
+            }
+
+            lastRearLeftPos = rearLeftPos.clone();
+            lastRearRightPos = rearRightPos.clone();
+
+            createSmoke(rearLeftPos);
+            createSmoke(rearRightPos);
+        } else {
+            driftText.classList.remove('show-drift');
+            lastRearLeftPos = null;
+            lastRearRightPos = null;
            
-            // 속도가 너무 낮을 때 무한 회전 방지
-            const velocityMultiplier = Math.min(1.0, Math.abs(speed) / 5.0);
+            // 🚀 드리프트가 끝나면 타이어 마찰 소리 줄이기
+            if (driftGain) {
+                driftGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+            }
+        }
+    }
 
-            // 측면 힘 (Cornering Force)
-            const cornerStiffnessFront = 50000;
-            const cornerStiffnessRear = 50000 * rearGripMultiplier;
+    function updateParticles(delta) {
+        // 연기 및 파편 파티클 애니메이션
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.mesh.position.add(p.vel.clone().multiplyScalar(delta));
            
-            let latForceFront = -cornerStiffnessFront * slipAngleFront * velocityMultiplier;
-            let latForceRear  = -cornerStiffnessRear * slipAngleRear * velocityMultiplier;
-           
-            // 그립 한계 (최대 마찰력) 적용
-            const maxGripFront = physics.gripFront * physics.mass * 9.8;
-            const maxGripRear  = physics.gripRear * physics.mass * 9.8 * rearGripMultiplier;
-           
-            latForceFront = Math.max(-maxGripFront, Math.min(maxGripFront, latForceFront));
-            latForceRear  = Math.max(-maxGripRear, Math.min(maxGripRear, latForceRear));
-
-            // 총 측면 힘
-            const totalLatForce = latForceFront * Math.cos(physics.steerAngle) + latForceRear;
-           
-            // 5. 가속도 적용
-            const accelZ = totalLongForce / physics.mass;
-            const accelX = totalLatForce / physics.mass;
-
-            // 로컬 가속도를 월드 가속도로 변환
-            const worldAccelX = cs * accelX + sn * accelZ;
-            const worldAccelZ = -sn * accelX + cs * accelZ;
-
-            // 속도 업데이트
-            physics.worldVelocity.x += worldAccelX * dt;
-            physics.worldVelocity.z += worldAccelZ * dt;
-
-            // 위치 업데이트
-            physics.position.x += physics.worldVelocity.x * dt;
-            physics.position.z += physics.worldVelocity.z * dt;
-
-            // 6. 회전 (Yaw) 계산
-            const torque = (physics.cgToFront * latForceFront * Math.cos(physics.steerAngle)) - (physics.cgToRear * latForceRear);
-            const angularAccel = torque / physics.inertia;
-           
-            physics.angularVelocity += angularAccel * dt;
-           
-            // 회전 저항 (자동으로 직진하려는 성향 및 스핀 방지)
-            physics.angularVelocity -= physics.angularVelocity * 2.0 * dt;
-           
-            physics.heading += physics.angularVelocity * dt;
-
-            // 7. 3D 모델 업데이트
-            carGroup.position.copy(physics.position);
-            carGroup.rotation.y = physics.heading;
-
-            // 앞바퀴 조향 회전 및 바퀴 구름 애니메이션
-            const wheelSpeed = physics.velocity.z / 0.35; // 속도 / 바퀴반경
-            frontWheels.children.forEach(w => {
-                w.rotation.y = physics.steerAngle;
-                w.children[0].rotation.x += wheelSpeed * dt; // 타이어
-                w.children[1].rotation.x += wheelSpeed * dt; // 림
-            });
-            rearWheels.children.forEach(w => {
-                // 뒷바퀴는 조향 없음, 사이드브레이크 시 구르지 않음
-                if(!physics.ebrake) {
-                    w.children[0].rotation.x += wheelSpeed * dt;
-                    w.children[1].rotation.x += wheelSpeed * dt;
-                }
-            });
-
-            // 8. 속도계 업데이트
-            const speedKmh = Math.abs(physics.velocity.z) * 3.6; // m/s to km/h
-            uiElements.speed.innerText = Math.floor(speedKmh);
-
-            // --- 9. 드리프트 감지 및 점수 ---
-            // 일정 측면 속도 이상, 일정 속도 이상일 때 드리프트로 판정
-            const isSlipping = Math.abs(physics.velocity.x) > 3.0 && speedKmh > 30;
-           
-            if (isSlipping) {
-                if (!isDrifting) {
-                    isDrifting = true;
-                    currentDriftScore = 0;
-                    driftMultiplier = 1;
-                    uiElements.driftBoard.style.opacity = '1';
-                }
-               
-                // 드리프트 각도(슬립 각도)가 클수록, 속도가 빠를수록 점수 빠르게 증가
-                const driftAngleScore = Math.abs(physics.velocity.x) * 0.1;
-                const speedScore = speedKmh * 0.01;
-               
-                currentDriftScore += (driftAngleScore + speedScore) * driftMultiplier;
-                driftMultiplier += dt * 0.5; // 오래 유지할수록 배수 증가
-               
-                uiElements.driftVal.innerText = Math.floor(currentDriftScore);
-               
-                // 타이어 자국(스키드마크) 생성
-                createSkidmark(dt);
+            if (p.isExplosion) {
+                // 폭발 파편일 경우: 중력 적용 및 빙글빙글 회전
+                p.vel.y -= 9.8 * 8 * delta; // 중력
+                p.mesh.rotation.x += delta * 10;
+                p.mesh.rotation.y += delta * 10;
+                p.life -= delta * 0.8;
+                p.mesh.material.opacity = Math.max(0, p.life * 0.6);
             } else {
-                if (isDrifting) {
-                    // 드리프트 종료 후 점수 합산
-                    isDrifting = false;
-                    totalScore += Math.floor(currentDriftScore);
-                    uiElements.score.innerText = totalScore;
-                   
-                    // 점수판 서서히 사라짐
-                    setTimeout(() => {
-                        if(!isDrifting) uiElements.driftBoard.style.opacity = '0';
-                    }, 1000);
-                }
+                // 일반 연기일 경우: 퍼지면서 사라짐
+                p.mesh.scale.addScalar(delta * 2);
+                p.life -= delta * 1.5;
+                p.mesh.material.opacity = Math.max(0, p.life * 0.6);
+                p.mesh.lookAt(camera.position);
+            }
+
+            if (p.life <= 0) {
+                scene.remove(p.mesh);
+                p.mesh.geometry.dispose();
+                p.mesh.material.dispose();
+                particles.splice(i, 1);
             }
         }
 
-        // --- 시각 효과 (스키드마크) ---
-        function createSkidmark(dt) {
-            // 프레임당 너무 많이 생성되지 않도록 제한
-            if(Math.random() > 0.5) return;
-
-            // 뒷바퀴 위치 월드 좌표 구하기
-            const rlPos = new THREE.Vector3();
-            const rrPos = new THREE.Vector3();
-           
-            // rearWheels 그룹 안의 메쉬 위치를 월드 좌표로 변환
-            rearWheels.children[0].getWorldPosition(rlPos);
-            rearWheels.children[1].getWorldPosition(rrPos);
-           
-            // 바닥에 살짝 띄우기
-            rlPos.y = 0.05;
-            rrPos.y = 0.05;
-
-            const makeMark = (pos) => {
-                const geo = new THREE.PlaneGeometry(0.4, 0.4);
-                // 회전 방향 맞추기 (차량의 진행 방향)
-                geo.rotateX(-Math.PI / 2);
-               
-                // 불투명도를 랜덤하게 주어 자연스럽게
-                const mat = new THREE.MeshBasicMaterial({
-                    color: 0x000000,
-                    transparent: true,
-                    opacity: 0.3 + Math.random() * 0.2,
-                    depthWrite: false
-                });
-               
-                const mark = new THREE.Mesh(geo, mat);
-                mark.position.copy(pos);
-                // 차량 회전과 동일하게 맞춰 자국이 남도록 함
-                mark.rotation.y = physics.heading;
-                scene.add(mark);
-                skidmarks.push(mark);
-               
-                // 오래된 자국 지우기 (최대 150개 유지)
-                if(skidmarks.length > 150) {
-                    const old = skidmarks.shift();
-                    scene.remove(old);
-                    old.geometry.dispose();
-                    old.material.dispose();
-                }
-            };
-
-            makeMark(rlPos);
-            makeMark(rrPos);
-        }
-
-        // 카메라 업데이트 (차량 따라가기)
-        function updateCamera() {
-            // 차량 뒤쪽 위 목표 위치 계산
-            const relativeCameraOffset = new THREE.Vector3(0, 4, -8);
-           
-            // 차량의 로컬 좌표를 월드 좌표로 변환할 행렬 (회전만 적용)
-            const cameraMatrix = new THREE.Matrix4();
-            // 드리프트 중 카메라가 차 꽁무니를 완전히 따라가면 어지러움,
-            // 따라서 실제 heading(차체방향)과 velocity 방향(이동방향)을 섞어 부드럽게 추적
-           
-            // 이동 방향 벡터
-            let velDir = new THREE.Vector3(physics.worldVelocity.x, 0, physics.worldVelocity.z);
-            if (velDir.lengthSq() > 0.1) {
-                velDir.normalize();
-            } else {
-                velDir.set(Math.sin(physics.heading), 0, Math.cos(physics.heading)); // 멈춰있을 땐 차체 방향
-            }
-           
-            // 이동 방향 각도
-            const moveHeading = Math.atan2(velDir.x, velDir.z);
-           
-            // 카메라 회전 = 차체 각도 70% + 이동 방향 각도 30% (역동적인 연출)
-            // 각도 차이 계산 시 랩어라운드(360도) 문제 처리
-            let diff = moveHeading - physics.heading;
-            while(diff < -Math.PI) diff += Math.PI * 2;
-            while(diff > Math.PI) diff -= Math.PI * 2;
-           
-            const targetCamHeading = physics.heading + diff * 0.3;
-
-            cameraMatrix.makeRotationY(targetCamHeading);
-           
-            let cameraPos = relativeCameraOffset.applyMatrix4(cameraMatrix);
-            cameraPos.add(carGroup.position);
-
-            // 카메라 위치 보간 (Lerp) - 부드러운 움직임
-            camera.position.lerp(cameraPos, 0.1);
-           
-            // 항상 차체를 바라봄
-            const lookAtPos = carGroup.position.clone();
-            lookAtPos.y += 1.0; // 차체보다 살짝 위를 바라봄
-            camera.lookAt(lookAtPos);
-        }
-
-        // 창 크기 변경 대응
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        // --- 메인 애니메이션 루프 ---
-        function animate(now) {
-            requestAnimationFrame(animate);
-
-            // Delta time 계산 (초 단위)
-            let dt = (now - lastTime) / 1000;
-            lastTime = now;
-           
-            // 프레임 드랍 시 물리 폭주 방지 (최대 0.05초로 고정)
-            if (dt > 0.05) dt = 0.05;
-
-            if (gameState === 'playing') {
-                updatePhysics(dt);
-                updateCamera();
-            } else if (gameState === 'menu') {
-                // 메뉴 화면에서 자동차 회전 연출
-                if(carGroup) {
-                    carGroup.rotation.y += 0.01;
-                    camera.position.set(Math.sin(now * 0.0005) * 8, 4, Math.cos(now * 0.0005) * 8);
-                    camera.lookAt(carGroup.position);
-                }
+        // 스키드 마크 애니메이션 (시간 지나면 희미해짐)
+        for (let i = skidMarks.length - 1; i >= 0; i--) {
+            const s = skidMarks[i];
+            s.life -= delta;
+            if (s.life < 1.0) {
+                s.mesh.material.opacity = s.life * 0.3; // 1초 남았을 때 페이드아웃
             }
 
-            renderer.render(scene, camera);
+            if (s.life <= 0) {
+                scene.remove(s.mesh);
+                s.mesh.geometry.dispose();
+                s.mesh.material.dispose();
+                skidMarks.splice(i, 1);
+            }
+        }
+    }
+
+    // 무한 맵 환경 업데이트 함수 (오브젝트 재배치)
+    function updateWorld() {
+        if (!carGroup || isExploded) return;
+
+        // 1. 바닥이 자동차를 계속 따라다니게 함 (시야 제한 효과)
+        floor.position.x = carGroup.position.x;
+        floor.position.z = carGroup.position.z;
+
+        // 2. 그리드는 칸 크기(20)의 배수로 스냅(Snap)하여 움직이게 해 이동하는 느낌을 줌
+        grid.position.x = Math.floor(carGroup.position.x / 20) * 20;
+        grid.position.z = Math.floor(carGroup.position.z / 20) * 20;
+
+        // 3. 고깔콘 오브젝트 풀링 (시야를 벗어난 장애물을 앞으로 재배치)
+        const despawnDistSq = 2500 * 2500; // 2500m 밖으로 나가면 안개 너머에서 재배치
+
+        for (let i = 0; i < obstacles.length; i++) {
+            const cone = obstacles[i];
+            const dx = cone.position.x - carGroup.position.x;
+            const dz = cone.position.z - carGroup.position.z;
+            const distSq = dx * dx + dz * dz;
+
+            // 시야에서 너무 멀어지면
+            if (distSq > despawnDistSq) {
+                // 자동차 주변(반경 2000~2400 사이 안개 속)에 랜덤 스폰
+                const spawnAngle = Math.random() * Math.PI * 2;
+                const spawnDist = 2000 + Math.random() * 400;
+               
+                cone.position.x = carGroup.position.x + Math.cos(spawnAngle) * spawnDist;
+                cone.position.z = carGroup.position.z + Math.sin(spawnAngle) * spawnDist;
+            }
+        }
+    }
+
+    function updateCamera() {
+        if (isExploded) return; // 폭발 시 카메라는 그 자리에 멈춤
+
+        // 🚀 달리고 있을 때도 무조건 45도를 유지하도록 카메라를 차에 단단히 고정 (Y=12, Z=12)
+        const idealOffset = new THREE.Vector3(0, 12, 12);
+        idealOffset.applyQuaternion(carGroup.quaternion);
+        idealOffset.add(carGroup.position);
+
+        // 🚀 속도가 빠를 때 카메라가 뒤로 밀리면서 각도가 낮아지는(평평해지는) 현상 완전 제거
+        camera.position.copy(idealOffset);
+
+        // 카메라는 항상 자동차 중앙을 내려다봄
+        camera.lookAt(carGroup.position);
+
+        // 🚀 뒤로 밀리는 고무줄 효과를 없앤 대신, 속도에 따라 화면 시야각(FOV)이 넓어지며 엄청난 스피드감을 줌!
+        const targetFOV = 60 + (Math.abs(speed) / maxSpeed) * 40; // 최고 속도에서 화면이 쫙 벌어짐
+        camera.fov += (targetFOV - camera.fov) * 0.1;
+        camera.updateProjectionMatrix();
+    }
+
+    function updateUI() {
+        if (isExploded) return; // 폭발하면 UI 업데이트 멈춤
+
+        // 속도계 표시 (절대값 정수 변환)
+        const currentSpeedKmH = Math.floor(Math.abs(speed));
+        speedEl.innerText = currentSpeedKmH;
+
+        // 게이지 바 애니메이션
+        const speedPercent = (Math.abs(speed) / maxSpeed) * 100;
+        speedBar.style.width = speedPercent + "%";
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const delta = Math.min(clock.getDelta(), 0.1); // 최대 프레임 딜레이 방지
+
+        if (gameStarted) {
+            updatePhysics(delta);
+            updateParticles(delta);
+            updateWorld(); // 무한 맵 업데이트
+            updateCamera();
+            updateUI();
+        } else {
+            // 게임 시작 전 카메라는 자동차 주변을 천천히 회전
+            const time = clock.getElapsedTime();
+            camera.position.set(Math.cos(time * 0.5) * 15, 5, Math.sin(time * 0.5) * 15);
+            camera.lookAt(carGroup.position);
         }
 
-        // 페이지 로드 시 초기화
-        window.onload = init;
+        renderer.render(scene, camera);
+    }
 
-    </script>
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // 초기화 실행
+    init();
+</script>
 </body>
 </html>
